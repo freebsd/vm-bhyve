@@ -269,8 +269,8 @@ core::create_cloud_init(){
             grep -oE 'interface=[^;]*' | sed 's/^interface=//')";
         _network_config_ipaddress="$(echo "${_network_config}" | \
             grep -oE 'ip=[^;]*' | sed 's/^ip=//')"
-        _network_config_gateway="$(echo "${_network_config}" | \
-            grep -oE 'gateway=[^;]*' | sed 's/^gateway=//')"
+        _network_config_gateway4="$(echo "${_network_config}" | \
+            grep -oE 'gateway4=[^;]*' | sed 's/^gateway4=//')"
         _network_config_gateway6="$(echo "${_network_config}" | \
             grep -oE 'gateway6=[^;]*' | sed 's/^gateway6=//')"
         _network_config_nameservers="$(echo "${_network_config}" | \
@@ -293,7 +293,7 @@ ethernets:
     match:
       macaddress: "${_mac}"
     addresses: [${_network_config_ipaddresses}]
-    gateway4: ${_network_config_gateway}
+    gateway4: ${_network_config_gateway4}
     gateway6: ${_network_config_gateway6}
     nameservers:
       search: [${_network_config_searchdomains}]

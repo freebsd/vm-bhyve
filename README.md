@@ -278,8 +278,8 @@ To list downloaded images:
 vm-bhyve has basic support for providing cloud-init configuration to the guest. You can enable it with `-C` option
 to `vm create` command. You can also pass public SSH key to be injected into the guest with option `-k <file>`.
 The public key file can contain multiple public SSH keys, one per line, in the `authorized_keys` format.
-Also `vm create` has option `-n "interface=;ip=;gateway=;gateway6=;nameservers=;searchdomains=;hostname="` that allows to set network parameters.
-Example of netconfig parameters: "interface=vtnet0;ip=10.0.0.2/24,2001:db8:85a3:0:0:8a2e:370:7334/64;gateway=10.0.0.1;gateway6=2001:db8:85a3::1;nameservers=1.1.1.1,8.8.8.8,2001:db8:1234:5678:9abc:def0:1234:5678;searchdomains=example.com,example.org" .
+Also `vm create` has option `-n "interface=;ip=;gateway4=;gateway6=;nameservers=;searchdomains=;hostname="` that allows to set network parameters.
+Example of netconfig parameters: "interface=vtnet0;ip=10.0.0.2/24,2001:db8:85a3:0:0:8a2e:370:7334/64;gateway4=10.0.0.1;gateway6=2001:db8:85a3::1;nameservers=1.1.1.1,8.8.8.8,2001:db8:1234:5678:9abc:def0:1234:5678;searchdomains=example.com,example.org" .
 `ip` may contain one IPv4 address and one IPv6 with `,` as the delimiter.
 
 Example:
