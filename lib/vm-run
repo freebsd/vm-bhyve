@@ -198,7 +198,7 @@ vm::run(){
         # add install iso or disk image
         if [ -n "${_iso}" ]; then
             if echo "${_iso}" | grep -iqs '.iso$'; then
-                _iso_dev="-s ${_install_slot}:0,ahci-cd,${_iso},ro"
+                _iso_dev="-s ${_install_slot}:0,ahci-cd,${_iso},ro,bootindex=1"
             else
                 _iso_dev="-s ${_install_slot}:0,ahci-hd,${_iso},ro"
             fi
