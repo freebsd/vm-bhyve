@@ -1205,6 +1205,12 @@ There are also some special cases where you may require no hostbridge at all,
 which can be achieved using the
 .Sy none
 value.
+.It fwcfg
+This option allows you to specify the fwcfg interface.
+The valid options are
+.Sy bhyve ,
+or
+.Sy qemu .
 .It comports
 This option allows you to specify which com ports to create for the guest.
 The default is to create a single

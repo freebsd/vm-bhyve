@@ -35,7 +35,7 @@
 vm::run(){
     local _name _iso _iso_dev
     local _cpu _memory _bootdisk _bootdisk_dev _guest _wiredmem
-    local _guest_support _uefi _uuid _debug _hostbridge _loader
+    local _guest_support _uefi _uuid _debug _hostbridge _fwcfg _loader
     local _opts _devices _slot _bus=0 _maxslots=31 _install_slot _func=0 _taplist _exit _passdev
     local _com _comports _comstring _logpath="/dev/null" _run=1
     local _bhyve_options _action
@@ -62,6 +62,7 @@ vm::run(){
     config::get "_bootdisk" "disk0_name"
     config::get "_bootdisk_dev" "disk0_dev" "file"
     config::get "_hostbridge" "hostbridge" "standard"
+    config::get "_fwcfg" "fwcfg"
     config::get "_comports" "comports" "com1"
     config::get "_uuid" "uuid"
     config::get "_debug" "debug" "no"
@@ -438,7 +439,7 @@ vm::bhyve_device_basic(){
     esac
 
     # lpc
-    _devices="${_devices}${_devices:+ }-s 31,lpc"
+    _devices="${_devices}${_devices:+ }-s 31,lpc${_fwcfg:+,fwcfg=$_fwcfg}"
 }
 
 # get bhyve device string for disk devices
