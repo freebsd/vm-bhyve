@@ -24,6 +24,8 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+TMUX_SOCKET=/var/run/vm-bhyve.sock
+
 # 'vm list'
 # list virtual machines
 #
@@ -709,6 +711,8 @@ core::__start(){
         return 1
     fi
 
+    _tmux_cmd="$_tmux_cmd -S $TMUX_SOCKET"
+
     echo "  * booting..."
 
     # run background process to actually start bhyve
@@ -959,7 +963,8 @@ core::console(){
         _tmux_cmd=$(which tmux)
 
         if [ -n "${_tmux_cmd}" ]; then
-            _tmux=$("${_tmux_cmd}" ls |grep "^${_name}:")
+            _tmux_cmd="$_tmux_cmd -S $TMUX_SOCKET"
+            _tmux=$(${_tmux_cmd} ls |grep "^${_name}:")
 
             if [ -n "${_tmux}" ]; then
                 ${_tmux_cmd} attach -t ${_console##*/}
