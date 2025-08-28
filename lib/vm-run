@@ -39,6 +39,7 @@ vm::run(){
     local _opts _devices _slot _bus=0 _maxslots=31 _install_slot _func=0 _taplist _exit _passdev
     local _com _comports _comstring _logpath="/dev/null" _run=1
     local _bhyve_options _action
+    local _xhci_cur_dev=0
 
     cmd::parse_args "$@"
     shift $?
@@ -170,6 +171,7 @@ vm::run(){
     vm::bhyve_device_passthru
     vm::bhyve_device_fbuf
     vm::bhyve_device_mouse
+    vm::bhyve_device_usb_passthru
     vm::bhyve_device_sound
     vm::bhyve_device_console
 
@@ -713,16 +715,33 @@ vm::bhyve_device_mouse(){
 
     [ ${VERSION_BSD} -lt 1100000 ] && return 0
 
-    # add a tablet device if enabled
-    if config::yesno "xhci_mouse"; then
-        _devices="${_devices} -s ${_bus}:${_slot}:0,xhci,tablet"
-        _slot=$((_slot + 1))
-    fi
+    _devices="${_devices} -s ${_bus}:${_slot}:0,xhci"
+    _slot=$((_slot + 1))
     if [ ${_slot} -ge ${_maxslots} ]; then
         _slot=0
         _bus=$((_bus + 1))
-	_maxslots=32
+        _maxslots=32
     fi
+
+    # add a tablet device if enabled
+    if config::yesno "xhci_mouse"; then
+        _devices="${_devices},tablet"
+        _xhci_cur_dev=$((_xhci_cur_dev + 1))
+    fi
+}
+
+vm::bhyve_device_usb_passthru(){
+    local _device  _cur_idx=1;
+
+    while true; do
+        config::get "_device" "xhci_passthru${_cur_idx}"
+        [ -z "${_device}" ] && break
+        [ ${_xhci_cur_dev} -ge 8 ] && break
+
+        _devices="${_devices},passthru.${_device}"
+        _xhci_cur_dev=$((_xhci_cur_dev + 1))
+        _cur_idx=$((_cur_idx + 1))
+    done
 }
 
 vm::bhyve_device_sound(){
