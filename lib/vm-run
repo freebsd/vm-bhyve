@@ -230,7 +230,29 @@ vm::run(){
 		_opts="${_opts} -Y"
 	fi
 
-        util::log "guest" "${_name}" " [bhyve options: ${_opts}]" \
+        #
+        # from this line onward, no more changes in _opts
+        #
+
+        # resume if saved vm state found
+        set -- ${_opts} # convert _opts to a positional parameter
+        if [ -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+            if util::check_bhyve_suspend; then
+                util::log "guest" "${_name}" "saved vm state found, resuming"
+                # there is no safe way to store a file path containing spaces in a string variable
+                # the shell treats the quotes (" or ') in below examples as literal chatacters
+                #   _opts="${_opts} -r \"${VM_DS_PATH}/${_name}/${_name}.save\""
+                #   _opts="${_opts} -r '${VM_DS_PATH}/${_name}/${_name}.save'"
+
+                # using positional parameters to handle paths that may contain spaces
+                set -- "$@" -r "${VM_DS_PATH}/${_name}/${_name}.save"
+            else
+                util::log "guest" "${_name}" \
+                    "saved vm state found but suspend/resume is unavailable or disabled, attempting to cold boot"
+            fi
+        fi
+
+        util::log "guest" "${_name}" " [bhyve options: $*]" \
           " [bhyve devices: ${_devices}]" \
           " [bhyve console: ${_comstring}]"
         [ -n "${_iso_dev}" ] && util::log "guest" "${_name}" " [bhyve iso device: ${_iso_dev}]"
@@ -241,7 +263,7 @@ vm::run(){
 
         # actually run bhyve!
         # we're already in the background so we just wait for it to exit
-        bhyve ${_opts} \
+        bhyve $@ \
               ${_devices} \
               ${_iso_dev} \
               ${_comstring} \
@@ -253,6 +275,9 @@ vm::run(){
 
         # remove any console sockets
         rm ${VM_DS_PATH}/${_name}/vtcon.* >/dev/null 2>&1
+
+        # suspend
+        [ -f "${VM_DS_PATH}/${_name}/suspending.lock" ] && break
 
         # decide what to do with exit code
         vm::handle_exit "_action" ${_exit}
@@ -273,7 +298,11 @@ vm::run(){
         ifconfig "${_devices}" destroy
     done
 
-    util::log "guest" "${_name}" "stopped"
+    if [ -e "${VM_DS_PATH}/${_name}/suspending.lock" ]; then
+        util::log "guest" "${_name}" "suspended"
+    else
+        util::log "guest" "${_name}" "stopped"
+    fi
     [ -e "/dev/vmm/${_name}" ] && bhyvectl --destroy --vm=${_name} >/dev/null 2>&1
 
     vm::unlock
@@ -377,6 +406,7 @@ vm::lock(){
 #
 vm::unlock(){
     unlink "${VM_DS_PATH}/${_name}/run.lock" >/dev/null 2>&1
+    unlink "${VM_DS_PATH}/${_name}/suspending.lock" >/dev/null 2>&1
     unlink "${VM_DS_PATH}/${_name}/console" >/dev/null 2>&1
 }
 
@@ -933,7 +963,14 @@ vm::running_check(){
         fi
     done
 
-    setvar "${_var}" "Stopped"
+    datastore::get_guest "${_name}"
+
+    if [ -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+        setvar "${_var}" "Suspended"
+    else
+        setvar "${_var}" "Stopped"
+    fi
+
     return 1
 }
 

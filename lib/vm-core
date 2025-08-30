@@ -115,8 +115,10 @@ core::list(){
                     _run="Locked (${_run})"
                 fi
 
-                if [ "${_run}" = "Stopped" -a -n "${_running_only}" ]; then
-                    continue
+                if [ -n "${_running_only}" ]; then
+                    if [ "${_run}" = "Stopped" -o "${_run}" = "Suspended" ]; then
+                        continue
+                    fi
                 fi
 
                 if [ -n "${VM_OPT_VERBOSE}" ]; then
@@ -709,7 +711,12 @@ core::__start(){
         return 1
     fi
 
-    echo "  * booting..."
+    if util::check_bhyve_suspend >/dev/null 2>&1 && [ -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+        echo "  * found saved vm state, resuming..."
+    else
+        echo "  * booting..."
+    fi
+
 
     # run background process to actually start bhyve
     # this will run as long as vm is running, including restarting bhyve after guest reboot
@@ -774,8 +781,47 @@ core::stop(){
                 kill "${_pid}" >/dev/null 2>&1
                 sleep 1
                 kill "${_pid}" >/dev/null 2>&1
+                # remove saved vm state after normal shutdown
+                core::discard -f "${_name}"
             elif [ -n "${_loadpid}" ]; then
                 if util::confirm "Guest ${_name} is in bootloader stage, do you wish to force exit"; then
+                    echo "Killing ${_name}"
+                    kill "${_loadpid}"
+                    bhyvectl --destroy --vm=${_name} >/dev/null 2>&1
+                fi
+            else
+                util::warn "unable to locate process id for ${_name}"
+            fi
+        fi
+        shift
+        _name="$1"
+    done
+}
+
+core::suspend(){
+    local _name="$1"
+    local _pid _loadpid
+
+    util::check_bhyve_suspend || util::err "unable to suspend the guest"
+
+    [ -z "${_name}" ] && util::usage
+
+    datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
+
+    while [ -n "${_name}" ]; do
+        if [ ! -e "/dev/vmm/${_name}" ]; then
+            util::warn "${_name} doesn't appear to be a running virtual machine"
+        else
+            _pid=$(pgrep -fx "bhyve: ${_name}")
+            _loadpid=$(pgrep -fl "grub-bhyve|bhyveload" | grep " ${_name}\$" |cut -d' ' -f1)
+
+            if [ -n "${_pid}" ]; then
+                echo "Suspending ${_name}"
+                # TODO: convert to function
+                hostname > "${VM_DS_PATH}/${_name}/suspending.lock"
+                bhyvectl --vm=${_name} --suspend="${VM_DS_PATH}/${_name}/${_name}.save" >/dev/null 2>&1
+            elif [ -n "${_loadpind}" ]; then
+                if util::confirm "Guest ${_name} is in bootloader stage and cannot suspend, do you wish to force exit"; then
                     echo "Killing ${_name}"
                     kill "${_loadpid}"
                     bhyvectl --destroy --vm=${_name} >/dev/null 2>&1
@@ -830,7 +876,8 @@ core::poweroff(){
         util::confirm "Are you sure you want to forcefully poweroff this virtual machine" || exit 0
     fi
 
-    bhyvectl --force-poweroff --vm=${_name}
+    # remove saved vm state on forceful poweroff
+    bhyvectl --force-poweroff --vm=${_name} && core::discard -f "${_name}"
 }
 
 # 'vm destroy'
@@ -867,6 +914,40 @@ core::destroy(){
     [ -e "${VM_DS_PATH}/${_name}" ] && rm -R "${VM_DS_PATH:?}/${_name:?}"
 
     exit 0
+}
+
+# 'vm discard'
+# discard the saved state of a guest
+#
+# @param string _name name of the guest
+#
+core::discard(){
+    local _name _rc=0
+
+    cmd::parse_args "$@"
+    shift $?
+    _name="$1"
+
+    [ -z "${_name}" ] && util::usage
+
+    # core::discard only accepts one target guest
+    [ ! -z "$2" ] && util::usage
+
+    datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
+
+    if [ -z "${VM_OPT_FORCE}" ]; then
+        util::confirm "Are you sure you want to remove the saved state of this virtual machine" || exit 0
+    fi
+
+    if [ ! -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+        util::err "no saved state exists for ${_name}"
+    fi
+
+    # remove vm state file
+    rm \
+        "${VM_DS_PATH}/${_name}/${_name}.save*" \
+
+    exit $?
 }
 
 # 'vm rename'

@@ -114,6 +114,39 @@ util::check_bhyve_iommu(){
     return 0
 }
 
+# check if bhyve support snapshot/suspend
+#
+# @return success if bhyve is built with snapshot/suspend support
+#
+util::check_bhyve_suspend(){
+    local _rc
+    local _suspend_enaled
+
+    # userland
+    bhyvectl 2>&1 | grep -q -- "--suspend="
+    _rc=$?
+    if [ $_rc -gt 0 ]; then
+        util::warn "bhyve on this host does not support suspend"
+        return $_rc
+    fi
+
+    # kernel
+    sysctl kern.conftxt | grep -q "BHYVE_SNAPSHOT"
+    _rc=$?
+    if [ $_rc -gt 0 ]; then
+        util::warn "bhyve on this host does not support suspend"
+        return $_rc
+    fi
+
+    config::core::get "_suspend_enabled" "suspend" "no"
+    if ! util::yesno "${_suspend_enabled}"; then
+        util::warn "bhyve seems to support suspend but disabled in vm-bhyve config"
+        return 1
+    fi
+
+    return $_rc
+}
+
 # restart a local service
 # checks if service is running and either starts or restarts
 #
@@ -168,6 +201,8 @@ Usage: vm ...
     start [-fi] <name> [...]
     stop <name> [...]
     restart <name>
+    suspend <name> [...]
+    discard [-f] <name>
     console [-w] <name> [com1|com2]
     configure <name>
     edit <name>
