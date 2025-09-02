@@ -292,7 +292,7 @@ ethernets:
     set-name: ${_network_config_interface:-eth0}
     match:
       macaddress: "${_mac}"
-    addresses: [${_network_config_ipaddresses}]
+    addresses: [${_network_config_ipaddress}]
     gateway4: ${_network_config_gateway4}
     gateway6: ${_network_config_gateway6}
     nameservers:
