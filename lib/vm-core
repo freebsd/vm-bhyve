@@ -236,6 +236,11 @@ core::create(){
 }
 
 core::create_cloud_init(){
+    local _cloud_init_dir _hostname
+    local _network_config_interface _network_config_ipaddress _network_config_gateway4 \
+          _network_config_gateway6 _network_config_nameservers _network_config_searchdomains \
+          _network_config_hostname
+
     # create disk with metadata for cloud-init
     _cloud_init_dir="${VM_DS_PATH}/${_name}/.cloud-init"
     # Use VM's name as a hostname by default
@@ -244,39 +249,13 @@ core::create_cloud_init(){
     mkdir -p "${_cloud_init_dir}"
 
     if [ -n "${_network_config}" ]; then
-        # Example netconfig param: "interface=vtnet0;ip=10.0.0.2/24;gateway=10.0.0.1;nameservers=1.1.1.1,8.8.8.8;searchdomains=example.com,example.org"
-        _network_config_interface="$(echo "${_network_config}" | \
-            grep -oE 'interface=[^;]*' | sed 's/^interface=//')";
-        _network_config_ipaddress="$(echo "${_network_config}" | \
-            grep -oE 'ip=[^;]*' | sed 's/^ip=//')"
-        _network_config_gateway="$(echo "${_network_config}" | \
-            grep -oE 'gateway=[^;]*' | sed 's/^gateway=//')"
-        _network_config_nameservers="$(echo "${_network_config}" | \
-            grep -oE 'nameservers=[^;]*' | sed 's/^nameservers=//')"
-        _network_config_searchdomains="$(echo "${_network_config}" | \
-            grep -oE 'searchdomains=[^;]*' | sed 's/^searchdomains=//')"
-        _network_config_hostname="$(echo "${_network_config}" | \
-            grep -oE 'hostname=[^;]*' | sed 's/^hostname=//')"
+        core::parse_netconfig "${_network_config}"
+        core::compile_network_config > "${_cloud_init_dir}/network-config"
 
         # Override default hostname when network config is passed to cloud-init
         if [ ! -z "${_network_config_hostname}" ]; then
                 _hostname="${_network_config_hostname}"
         fi
-
-        cat << EOF > "${_cloud_init_dir}/network-config"
-version: 2
-ethernets:
-  id0:
-    set-name: ${_network_config_interface:-eth0}
-    match:
-      macaddress: "${_mac}"
-    addresses:
-      - ${_network_config_ipaddress}
-    gateway4: ${_network_config_gateway}
-    nameservers:
-      search: [${_network_config_searchdomains}]
-      addresses: [${_network_config_nameservers}]
-EOF
     fi
 
     cat << EOF > "${_cloud_init_dir}/meta-data"
@@ -304,6 +283,115 @@ EOF
     config::set "${_name}" "disk${_num}_type" "ahci-cd"
     config::set "${_name}" "disk${_num}_name" "seed.iso"
     config::set "${_name}" "disk${_num}_dev" "file"
+}
+
+
+# parse cloud-init netconfig string passed via `vm create -C -n [netconfig]`
+#
+# @private
+# @param string netconfig
+#
+core::parse_netconfig(){
+    local _network_config
+
+    _network_config="$1"
+
+    _network_config_interface="$(echo "${_network_config}" | \
+        grep -oE 'interface=[^;]*' | sed 's/^interface=//')";
+    _network_config_ipaddress="$(echo "${_network_config}" | \
+        grep -oE 'ip=[^;]*' | sed 's/^ip=//')"
+    _network_config_gateway4="$(echo "${_network_config}" | \
+        grep -oE 'gateway4=[^;]*' | sed 's/^gateway4=//')"
+    _network_config_gateway6="$(echo "${_network_config}" | \
+        grep -oE 'gateway6=[^;]*' | sed 's/^gateway6=//')"
+    _network_config_nameservers="$(echo "${_network_config}" | \
+        grep -oE 'nameservers=[^;]*' | sed 's/^nameservers=//')"
+    _network_config_searchdomains="$(echo "${_network_config}" | \
+        grep -oE 'searchdomains=[^;]*' | sed 's/^searchdomains=//')"
+    _network_config_hostname="$(echo "${_network_config}" | \
+        grep -oE 'hostname=[^;]*' | sed 's/^hostname=//')"
+
+}
+
+# compile cloud-init network-config
+#
+# @private
+#
+core::compile_network_config(){
+    local _addr _ipv4_found ipv6_found
+    local _tmpfile=$(mktemp)
+
+    cat << EOF >> "${_tmpfile}"
+version: 2
+ethernets:
+  id0:
+EOF
+
+    echo "    set-name: ${_network_config_interface:-eth0}" >> ${_tmpfile}
+    echo "    match:" >> ${_tmpfile}
+    echo "      macaddress: ${_mac}" >> ${_tmpfile}
+
+    # IP addresses
+    if [ ! -z "${_network_config_ipaddress}" ]; then
+        OLDIFS=$IFS
+        IFS=,
+        for _addr in ${_network_config_ipaddress}; do
+            case "${_addr}" in
+                *:*)
+                    _ipv6_found="1"
+                    ;;
+                *.*)
+                    _ipv4_found="1"
+                    ;;
+
+            esac
+        done
+        IFS=$OLDIFS
+        echo "    addresses: [${_network_config_ipaddress}]" >> ${_tmpfile}
+    fi
+
+    # use DHCP if no IPv4 address specified
+    if [ -z "${_ipv4_found}" ]; then
+        echo "    dhcp4: true" >> ${_tmpfile}
+    fi
+
+    # use DHCP and RA if no IPv6 specified
+    if [ -z "${_ipv6_found}" ]; then
+        echo "    dhcp6: true"  >> ${_tmpfile}
+        echo "    accept-ra: true"  >> ${_tmpfile}
+    fi
+
+    # nameservers & searchdomains
+    if [ -n "${_network_config_serachdomains}" -o -n "${_network_config_nameservers}" ]; then
+        echo "    nameservers:" >> ${_tmpfile}
+
+        if [ -n "${_network_config_nameservers}" ]; then
+            echo "      addresses: [${_network_config_nameservers}]" >> ${_tmpfile}
+        fi
+
+        if [ -n "${_searchdomains}" ]; then
+            echo "      search: [${_searchdomains}]" >> ${_tmpfile}
+        fi
+    fi
+
+    # gateway
+    if [ -n "${_network_config_gateway4}" -o -n "${_network_config_gateway6}" ]; then
+        echo "    routes:" >> ${_tmpfile}
+
+        if [ -n "${_network_config_gateway4}" ]; then
+            echo "      - to: 0.0.0.0/0" >> ${_tmpfile}
+            echo "        via: ${_network_config_gateway4}" >> ${_tmpfile}
+        fi
+
+        if [ -n "${_network_config_gateway6}" ]; then
+            echo "      - to: ::/0" >> ${_tmpfile}
+            echo "        via: ${_network_config_gateway6}" >> ${_tmpfile}
+        fi
+    fi
+
+
+    cat "${_tmpfile}"
+    rm -f -- "${_tmpfile}"
 }
 
 # write cloud image to disk image
@@ -1068,7 +1156,6 @@ core::configure(){
             util::usage
             ;;
     esac
-
 }
 
 # 'vm iso'
