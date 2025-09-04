@@ -689,7 +689,7 @@ core::__start(){
         return 1
     fi
 
-    if util::check_bhyve_suspend >/dev/null 2>&1 && [ -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+    if util::check_bhyve_suspend >/dev/null 2>&1 && vm::has_saved_state "${_name}"; then
         echo "  * found saved vm state, resuming..."
     else
         echo "  * booting..."
@@ -917,7 +917,7 @@ core::discard(){
         util::confirm "Are you sure you want to remove the saved state of this virtual machine" || exit 0
     fi
 
-    if [ ! -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+    if ! vm::has_saved_state "${_name}"; then
         if [ -z "${VM_OPT_FORCE}" ]; then
             util::err "no saved state exists for ${_name}"
         else

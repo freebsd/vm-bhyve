@@ -215,7 +215,7 @@ vm::run(){
 
         # resume if saved vm state found
         set -- ${_opts} # convert _opts to a positional parameter
-        if [ -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+        if vm::has_saved_state "${_name}"; then
             if util::check_bhyve_suspend; then
                 util::log "guest" "${_name}" "saved vm state found, resuming"
                 # there is no safe way to store a file path containing spaces in a string variable
@@ -947,7 +947,7 @@ vm::running_check(){
 
     datastore::get_guest "${_name}"
 
-    if [ -e "${VM_DS_PATH}/${_name}/${_name}.save" ]; then
+    if vm::has_saved_state "${_name}"; then
         setvar "${_var}" "Suspended"
     else
         setvar "${_var}" "Stopped"
@@ -991,6 +991,19 @@ vm::confirm_stopped(){
     fi
 
     return 0
+}
+
+#
+# check if the virtual machine has saved state
+#
+# @param string _name the guest name
+# @return success if the guest has saved state
+#
+vm::has_saved_state(){
+    local _name="$1"
+
+    [ -e "${VM_DS_PATH}/${_name}/${_name}.save" ]
+    return $?
 }
 
 # generate a static mac address for a guest.
