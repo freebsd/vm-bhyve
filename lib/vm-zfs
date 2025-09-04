@@ -267,6 +267,7 @@ zfs::clone(){
     # generate a short uuid and create snapshot if no custom snap given
     if [ -z "${_snap}" ]; then
         vm::confirm_stopped "${_old}" || exit 1
+        vm::has_saved_state "${_old}" && util::err "guest appears to be suspended, stop it before cloning"
         _snap=$(echo "${_uuid}" |awk -F- '{print $1}')
 
         zfs snapshot -r "${VM_DS_ZFS_DATASET}/${_old}@${_snap}"
