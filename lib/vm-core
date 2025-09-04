@@ -941,6 +941,7 @@ core::discard(){
 core::rename(){
     local _old="$1"
     local _new="$2"
+    local _mv_failed
 
     [ -z "${_old}" -o -z "${_new}" ] && util::usage
     util::check_name "${_new}" || util::err "invalid virtual machine name - '${_name}'"
@@ -963,6 +964,14 @@ core::rename(){
     # rename config file
     mv "${VM_DS_PATH}/${_new}/${_old}.conf" "${VM_DS_PATH}/${_new}/${_new}.conf" >/dev/null 2>&1
     [ $? -eq 0 ] || util::err "changed guest directory but failed to rename configuration file"
+
+    # rename saved vm state file
+    _mv_failed=0
+    for _ext in .save .save.kern .save.meta; do
+        [ -e "${VM_DS_PATH}/${_new}/${_old}${_ext}" ] || continue
+        mv "${VM_DS_PATH}/${_new}/${_old}${_ext}" "${VM_DS_PATH}/${_new}/${_new}${_ext}" >/dev/null 2>&1 || _mv_failed=1
+    done
+    [ "${_mv_failed}" -eq 0 ] || util::err "changed guest directory but failed to rename saved vm state file"
 }
 
 # 'vm console'
