@@ -1,7 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\" SPDX-FileCopyrightText: 2016 Matt Churchyard <churchers@gmail.com>
 .\" SPDX-FileCopyrightText: 2025 Koichiro Iwao (metalefty) <meta@FreeBSD.org>
-.Dd September 1, 2025
+.Dd September 10, 2025
 .Dt VM-BHYVE 8
 .Os
 .Sh NAME
@@ -816,11 +816,10 @@ subcommand.
 It will automatically detect whether the virtual machine is suspended and
 resume it.
 .Pp
-This feature is still experimental as of September 2025 and requires the
-.Fx FreeBSD
-kernel and userland to be rebuilt with
+This feature is still experimental as of September 2025 and requires at least
+.Fx 13.0-RELEASE, with both the kernel and userland rebuilt with the
 .Dv BHYVE_SNAPSHOT
-option.
+option enabled.
 .It Xo
 .Cm discard
 .Op Fl f
