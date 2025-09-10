@@ -112,6 +112,14 @@
 .Cm restart
 .Ar name
 .Nm
+.Cm suspend
+.Ar name
+.Ar ...
+.Nm
+.Cm discard
+.Op Fl f
+.Ar name
+.Nm
 .Cm console
 .Op Fl w
 .Ar name
@@ -795,6 +803,37 @@ network devices like it would when using
 Note that guest configuration is not re-loaded, so all guest settings will be as
 they were when the guest was originally started.
 .It Xo
+.Cm suspend Ar name Ar ...
+.Xc
+Stop the named virtual machine(s) while retaining their state.
+The memory contents of the virtual machine(s) are saved in the datastore.
+When resumed, the operating systems and applications are restored to the exact
+state they were in before suspension.
+.Pp
+To resume a suspended virtual machine, use the
+.Em start
+subcommand.
+It will automatically detect whether the virtual machine is suspended and
+resume it.
+.Pp
+This feature is still experimental as of September 2025 and requires the
+FreeBSD kernel and userland to be rebuilt with
+.Dv BHYVE_SNAPSHOT
+option.
+.It Xo
+.Cm discard
+.Op Fl f
+.Ar name
+.Xc
+Discard the saved state files of the virtual machine.
+This operation is equivalent to a forced power-off from the guest, and any
+unsaved files may be lost.
+.Pp
+If the
+.Ar -f
+option is specified, the state files will be removed without prompting for
+confirmation.
+.It Xo
 .Cm console
 .Op Fl w
 .Ar name
@@ -820,7 +859,7 @@ option is specified, wait until the virtual machine starts before connecting
 to the console.
 .It Cm rename Ar name Ar new-name
 Renames the specified virtual machine.
-The guest must be stopped to use this function.
+The guest must be stopped or suspended to use this function.
 .It Xo
 .Cm add
 .Op Fl d Ar device
