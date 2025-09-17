@@ -326,7 +326,7 @@ zfs::image_create(){
     _name=$1
     _uuid=$(uuidgen)
     _snap=${_uuid%%-*}
-    _date=$(date)
+    _date=$(date -Iseconds)
 
     [ -z "${_desc}" ] && _desc="No description provided"
 
