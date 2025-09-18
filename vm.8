@@ -571,7 +571,7 @@ To remove an address, specify
 .Pa none
 in place of the address.
 .Pp
-If NAT funtionality is required, please configure an address on the switch to
+If NAT functionality is required, please configure an address on the switch to
 become the gateway address for guests.
 Source NAT rules can then be created using your choice of firewall or NAT
 daemon.
@@ -797,7 +797,7 @@ Attempt to restart the specified guest.
 This causes a shutdown event to be sent to the guest, however, vm-bhyve will
 restart the guest rather than stopping completely.
 .Pp
-A benfit of using this function is that vm-bhyve will not destroy and recreate
+A benefit of using this function is that vm-bhyve will not destroy and recreate
 network devices like it would when using
 .Sy stop/start .
 Note that guest configuration is not re-loaded, so all guest settings will be as
@@ -1072,9 +1072,9 @@ Triple snapshot mode.
 This will send both a full snapshot, and one incremental,
 before shutting the guest down and doing a final incremental send.
 This may be useful for large or busy guests where there could be a large number
-of chages during the initial full send.
+of changes during the initial full send.
 The idea is that the first incremental send will bring the remote guest nearly
-up to date, sending changes that have occured during the lengthy inital full
+up to date, sending changes that have occurred during the lengthy initial full
 send.
 This should reduce the size of the final incremental send, minimising the amount
 of time the guest is powered off.
