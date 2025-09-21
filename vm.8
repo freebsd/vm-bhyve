@@ -1590,6 +1590,19 @@ same sequence as the original device.
 Please see
 .Lk https://wiki.freebsd.org/bhyve/pci_passthru
 for more details on how this works.
+.It Cm passthruX_options
+Specify options for a passthru device backend such as
+.Sy rom
+and
+.Sy bootindex .
+.Pp
+For example, to use a ROM file with the first passthru device:
+.Pp
+passthru0_options="rom=i915_vbt"
+.Pp
+Please see the
+.Xr bhyve 8
+man page for more details on passthru-device-options.
 .It virt_random
 Set this option to
 .Sy yes
