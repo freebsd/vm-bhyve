@@ -348,11 +348,11 @@ graphics="yes"
 graphics_port="5999"
 
 # graphics_listen
-# By default, the vnc service will listen on 0.0.0.0, so you can connect by
-# using any IP address assigned to the bhyve host. Use this option if you
-# want to specify a specific IP address that the service should bind to
+# By default, the vnc service will listen on 127.0.0.1, so you can connect
+# only from the bhyve host. Use this option if you want to specify a specific
+# or wildcard (0.0.0.0) IP address that the service should bind to.
 #
-# Default: 0.0.0.0
+# Default: 127.0.0.1
 #
 graphics_listen="10.0.0.1"
 

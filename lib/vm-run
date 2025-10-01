@@ -680,14 +680,14 @@ vm::bhyve_device_fbuf(){
     fi
 
     # add ip, port, resolution, wait
-    _fbuf_conf="tcp=${_listen:-0.0.0.0}:${_port}"
+    _fbuf_conf="tcp=${_listen:-127.0.0.1}:${_port}"
     [ -n "${_res}" ] && _fbuf_conf="${_fbuf_conf},w=${_res%%x*},h=${_res##*x}"
     [ -n "${_vga}" ] && _fbuf_conf="${_fbuf_conf},vga=${_vga}"
     [ -n "${_pass}" ] && _fbuf_conf="${_fbuf_conf},password=${_pass}"
     util::yesno "${_wait}" && _fbuf_conf="${_fbuf_conf},wait"
 
     # write vnc port to console data
-    echo "vnc=${_listen:-0.0.0.0}:${_port}" >> "${VM_DS_PATH}/${_name}/console"
+    echo "vnc=${_listen:-127.0.0.1}:${_port}" >> "${VM_DS_PATH}/${_name}/console"
 
     # add device
     _devices="${_devices} -s ${_bus}:${_slot}:0,fbuf,${_fbuf_conf}"

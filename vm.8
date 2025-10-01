@@ -1565,7 +1565,7 @@ device for this guest.
 If set to yes, a frame buffer is added to the guest.
 This provides a graphical console that is accessible using VNC.
 By default the console is 800x600, and will listen on
-.Sy 0.0.0.0:5900 .
+.Sy 127.0.0.1:5900 .
 If port 5900 is not available, the next available port will be used.
 The active address and port can be viewed in
 .Sy vm list
@@ -1579,9 +1579,9 @@ Please remember that all guests should ideally use a unique port to avoid any
 problems.
 .It graphics_listen
 By default the graphical VNC console will listen on
-.Sy 0.0.0.0 ,
-so is accessible by connecting to any IP address assigned to the bhyve host.
-Use this option to specify a specific IP address that the VNC service should
+.Sy 127.0.0.1 ,
+so is only accessible by connecting to the loopback IP address of the bhyve host.
+Use this option to specify a specific or wildcard IP address that the VNC service should
 bind to.
 .It graphics_res
 Specify the resolution of the graphical console in
