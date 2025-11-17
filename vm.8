@@ -1508,6 +1508,22 @@ Specify any additional command line arguments to pass to the bhyve command.
 This allows the use of options such as cpu pinning or debug that are not
 exposed by
 .Sy vm-bhyve .
+.It bhyve_extra
+Similar to the
+.Sy bhyve_options
+setting, specify any additional command line arguments to pass to the bhyve
+command, but at the end of the command.
+.Pp
+bhyve can be dependent upon the order of the options it receives, so attempting
+to set configuration variables using
+.Sy -k
+or
+.Sy -o
+from
+.Xr bhyve 8
+will result in an error if set prior to setting the PCI slot (bhyve
+.Sy -s
+option).
 .It grub_installX
 This option allows you to specify grub commands needed to boot the install
 media for this guest.
