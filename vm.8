@@ -83,6 +83,7 @@
 .Op Fl i Ar vm-image
 .Op Fl C k Ar pubkeys
 .Op Fl n Ar netconfig
+.Op Fl u Ar user-data
 .Ar name
 .Nm
 .Cm destroy
@@ -672,6 +673,26 @@ suffix should not be included.
 .It Fl s Ar size
 The size of disk image to create in bytes.
 Unless specified, the guest image will be a sparse file 20GB in size.
+.It Fl C
+Enable cloud-init support for this guest.
+A
+.Pa .cloud-init
+directory is created containing meta-data, user-data, and optionally
+network-config files.
+These are packaged into a seed.iso on first boot.
+.It Fl k Ar pubkeys
+Specify a file containing SSH public keys to inject via cloud-init.
+Requires
+.Fl C .
+.It Fl u Ar user-data
+Specify a cloud-init user-data file to use instead of generating a default one.
+This allows passing a complete cloud-config file for advanced provisioning.
+Requires
+.Fl C .
+.It Fl n Ar netconfig
+Specify network configuration for cloud-init.
+Requires
+.Fl C .
 .El
 .It Cm destroy Ar name
 Removes the specified virtual machine from the system, deleting all associated

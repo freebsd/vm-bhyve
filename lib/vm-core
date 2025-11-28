@@ -120,8 +120,9 @@ core::create(){
     local _name _opt _size _vmdir _disk _disk_dev _num=0
     local _zfs_opts _disk_size _template="default" _ds="default" _ds_path _img _cpu _memory _uuid
     local _enable_cloud_init _cloud_init_dir _ssh_public_keys _ssh_public_key _ssh_key_file _network_config _mac
+    local _user_data_file
 
-    while getopts d:t:s:i:c:m:Ck:n: _opt ; do
+    while getopts d:t:s:i:c:m:Ck:n:u: _opt ; do
         case $_opt in
             t) _template=${OPTARG} ;;
             s) _size=${OPTARG} ;;
@@ -132,6 +133,7 @@ core::create(){
             k) _ssh_key_file=${OPTARG} ;;
             C) _enable_cloud_init='true' ;;
             n) _network_config=${OPTARG} ;;
+            u) _user_data_file=${OPTARG} ;;
 
             *) util::usage ;;
         esac
@@ -162,10 +164,20 @@ core::create(){
 
     # get ssh public key for cloud-init from file
     if [ -n "${_ssh_key_file}" ]; then
-
       [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for injecting public key. Use -C to enable it."
       [ ! -r "${_ssh_key_file}" ] && util::err "can't read file with public key (${_ssh_key_file})"
       _ssh_public_keys="$(sed -e '/^$/d' -e '/^#/d' "${_ssh_key_file}")"
+    fi
+
+    # validate user-data file for cloud-init
+    if [ -n "${_user_data_file}" ]; then
+      [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for user-data file. Use -C to enable it."
+      [ ! -r "${_user_data_file}" ] && util::err "can't read user-data file (${_user_data_file})"
+    fi
+
+    # validate network config for cloud-init
+    if [ -n "${_network_config}" ]; then
+      [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for network config. Use -C to enable it."
     fi
 
     # if we're on zfs, make a new filesystem
@@ -263,21 +275,26 @@ instance-id: ${_uuid}
 local-hostname: ${_hostname}
 EOF
 
-    cat << EOF > "${_cloud_init_dir}/user-data"
+    # create user-data: use provided file or generate default
+    if [ -n "${_user_data_file}" ]; then
+        cp "${_user_data_file}" "${_cloud_init_dir}/user-data"
+    else
+        cat << EOF > "${_cloud_init_dir}/user-data"
 #cloud-config
 resize_rootfs: True
 manage_etc_hosts: localhost
 EOF
 
-    if [ -n "${_ssh_public_keys}" ]; then
-        cat << EOF >> "${_cloud_init_dir}/user-data"
+        if [ -n "${_ssh_public_keys}" ]; then
+            cat << EOF >> "${_cloud_init_dir}/user-data"
 ssh_authorized_keys:
 EOF
-        echo "${_ssh_public_keys}" | while read -r _ssh_public_key; do
-            cat << EOF >> "${_cloud_init_dir}/user-data"
+            echo "${_ssh_public_keys}" | while read -r _ssh_public_key; do
+                cat << EOF >> "${_cloud_init_dir}/user-data"
   - ${_ssh_public_key}
 EOF
-        done
+            done
+        fi
     fi
 
     config::set "${_name}" "disk${_num}_type" "ahci-cd"
