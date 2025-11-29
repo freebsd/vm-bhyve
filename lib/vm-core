@@ -175,6 +175,11 @@ core::create(){
       [ ! -r "${_user_data_file}" ] && util::err "can't read user-data file (${_user_data_file})"
     fi
 
+    # -u and -k are mutually exclusive
+    if [ -n "${_user_data_file}" ] && [ -n "${_ssh_key_file}" ]; then
+      util::err "-u and -k are mutually exclusive; use one or the other"
+    fi
+
     # validate network config for cloud-init
     if [ -n "${_network_config}" ]; then
       [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for network config. Use -C to enable it."
