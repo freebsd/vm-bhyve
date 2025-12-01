@@ -81,9 +81,9 @@
 .Op Fl c Ar vCPUs
 .Op Fl m Ar memory
 .Op Fl i Ar vm-image
-.Op Fl C k Ar pubkeys
+.Op Fl C k Ar pubkey-file
 .Op Fl n Ar netconfig
-.Op Fl u Ar user-data
+.Op Fl u Ar user-data-file
 .Ar name
 .Nm
 .Cm destroy
@@ -675,11 +675,11 @@ The size of disk image to create in bytes.
 Unless specified, the guest image will be a sparse file 20GB in size.
 .It Fl C
 Enable cloud-init support for this guest.
-.It Fl k Ar pubkeys
+.It Fl k Ar pubkey-file
 Specify a file containing SSH public keys to inject via cloud-init.
 Requires
 .Fl C .
-.It Fl u Ar user-data
+.It Fl u Ar user-data-file
 Specify a cloud-init user-data file to use instead of generating a default one.
 This allows passing a complete cloud-config file for advanced provisioning.
 Requires
