@@ -453,7 +453,7 @@ core::write_img(){
 
     # if disk type is file then we need to resize it
     if [ "${_disk_type}" = "file" ]; then
-        qemu-img resize "${_disk_dev}" "${_disk_size}"
+        qemu-img resize -q -f raw "${_disk_dev}" "${_disk_size}"
         if [ $? -ne 0 ]; then
             util::err "failed to resize img file with qemu-img"
         fi
