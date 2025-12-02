@@ -646,11 +646,23 @@ network share) where you may want to store iso images.
 .Op Fl d Ar datastore
 .Op Fl t Ar template
 .Op Fl s Ar size
+.Op Fl c Ar vCPUs
+.Op Fl m Ar memory
+.br
+.Op Fl i Ar vm-image
+.Op Fl C
+.Op Fl k Ar pubkey-file
+.Op Fl u Ar user-data-file
+.br
+.Op Fl n Ar netconfig
 .Ar name
+.sp
 .Xc
 Create a new virtual machine.
 .Pp
-Unless specified, the
+If no arguments other than
+.Ar name
+are specified, the
 .Pa default.conf
 template will be used and a 20GB virtual disk image is created.
 This subcommand will create the virtual machine directory
@@ -673,6 +685,16 @@ suffix should not be included.
 .It Fl s Ar size
 The size of disk image to create in bytes.
 Unless specified, the guest image will be a sparse file 20GB in size.
+.It Fl c Ar vCPUs
+Override the number of vCPUs allocated to the guest as specified in the
+template.
+.It Fl c Ar memory
+Override the amount of memory allocated to the guest as specified in the
+template.
+.It Fl i Ar vm-image
+Specify a VM image using the filename stored in the
+.Pa $vm_dir/.img
+directory.
 .It Fl C
 Enable cloud-init support for this guest.
 .It Fl k Ar pubkey-file
