@@ -154,56 +154,55 @@ util::version(){
 util::usage(){
     util::version
     cat << EOT
-Usage: vm ...
-    version
-    init
-    set [setting=value] [...]
-    get [all|setting] [...]
-    switch list
-    switch info [name] [...]
-    switch create [-t type] [-i interface] [-n vlan-id] [-m mtu] [-a address/prefix-len] [-b bridge] [-p] <name>
-    switch vlan <name> <vlan|0>
-    switch nat <name> <on|off>
-    switch address <name> <a.b.c.d/xx|none>
-    switch private <name> <on|off>
-    switch add <name> <interface>
-    switch remove <name> <interface>
-    switch destroy <name>
-    datastore list
-    datastore add <name> <spec>
-    datastore remove <name>
-    datastore add <name> <path>
-    list [-r]
-    info [name] [...]
-    create [-d datastore] [-t template] [-s size] [-m memory] [-c vCPUs] [-i vm-image]
-           [-C [-k pubkey-file | -u user-data-file] [-n "netconfig"]] <name>
-    install [-fi] <name> <iso>
-    start [-fi] <name> [...]
-    stop <name> [...]
-    restart <name>
-    suspend <name> [...]
-    discard [-f] <name>
-    console [-w] <name> [com1|com2]
-    configure <name>
-    edit <name>
-    rename <name> <new-name>
-    add [-d device] [-t type] [-s size|switch] <name>
-    startall
-    stopall [-f]
-    suspendall [-f]
-    reset  [-f] <name>
-    poweroff [-f] <name>
-    destroy [-f] <name>
-    passthru
-    clone <name[@snapshot]> <new-name>
-    snapshot [-f] <name[@snapshot]>
-    rollback [-r] <name@snapshot>
-    iso [url]
-    img [url]
-    image list
-    image create [-d description] [-u] <name>
-    image destroy <uuid>
-    image provision [-d datastore] <uuid> <newname>
+
+Available subcommands grouped by scenario:
+
+Help / Information
+  usage         Display this help
+  help          Display help about any subcommand
+  version       Display version information about vm-bhyve
+
+Host and Infrastructure Management
+  init          Initialize the host; should be run after each reboot
+  switch        Manage virtual network switches
+  datastore     Manage datastores
+  get           Get all or specified global vm-bhyve configuration(s)
+  set           Set global vm-bhyve configuration(s)
+  passthru      List all passthru devices and their device IDs
+
+VM Management
+  list          Display list of guests
+  info          Display detailed info about all or specified guest(s)
+  create        Create a new guest
+  rename        Rename a guest
+  clone         Clone an existing guest
+  destroy       Remove a guest from the host
+  configure     Open the editor to modify a guest configuration
+  edit          Alias to configure
+  image         Manage images created from provisioned guests
+  console       Open a console to a guest
+  migrate       Transfer a guest from one to another using SSH
+
+VM Start/Stop Operations
+  install       Start a guest from a specified ISO for installation
+  start         Start specified guest(s)
+  stop          Stop specified running guest(s)
+  restart       Restart a running guest
+  suspend       Stop specified guest(s), while retaining their state
+  discard       Discard the suspended state of a guest
+  startall      Start all guests
+  stopall       Stop all guests
+  suspendall    Suspend all guests
+  reset         Reset a guest forcibly
+  poweroff      Power off a guest forcibly
+
+Snapshot Operations
+  snapshot      Take a snapshot of a guest
+  rollback      Roll back a guest to a snapshot
+
+Image Management
+  iso           List stored ISOs or download one
+  img           List stored VM images or download one
 EOT
     exit 1
 }
