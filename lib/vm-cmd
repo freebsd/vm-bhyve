@@ -5,7 +5,7 @@
 CMD_VALID_LIST="init,switch,datastore,image,get,set,list,create,destroy,rename,install,start,stop,restart"
 CMD_VALID_LIST="${CMD_VALID_LIST},add,reset,poweroff,startall,stopall,console,iso,img,configure,passthru,_run"
 CMD_VALID_LIST="${CMD_VALID_LIST},info,clone,snapshot,rollback,migrate,version,usage,edit"
-CMD_VALID_LIST="${CMD_VALID_LIST},suspend,suspendall,discard"
+CMD_VALID_LIST="${CMD_VALID_LIST},suspend,suspendall,discard,help"
 
 # cmd: vm ...
 #
@@ -22,6 +22,11 @@ cmd::parse_info(){
     case "${_cmd}" in
         version) util::version && exit ;;
         usage)   util::usage ;;
+        help)
+            [ -z "$2" ] && help::_help
+            help::show "$2"
+	    exit
+	    ;;
     esac
 }
 

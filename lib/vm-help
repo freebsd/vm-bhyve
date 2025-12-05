@@ -1,0 +1,367 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-FileCopyrightText: 2025 Koichiro Iwao (metalefty) <meta@FreeBSD.org>
+#
+# Help
+
+# Help of help
+help::_help(){
+    util::usage
+    exit
+}
+
+help::show(){
+    local _help_cmd
+
+    cmd::find "_help_cmd" "$1" "${CMD_VALID_LIST}"
+
+    [ -z "${_help_cmd}" ] && help::_help
+
+
+    case "${_help_cmd}" in
+        usage|version|init)  util::usage ;; # no help
+        get|set)             _help_cmd=get_set ;;
+        configure|edit)      _help_cmd=configure ;;
+    esac
+
+    eval "printf %s \"\${_hs_${_help_cmd}#?}\""
+
+    exit
+}
+
+#
+# Help for each command
+#
+
+#### Help / Information
+
+_hs_usage=""
+_hs_version=""
+_hs_help="
+Usage:
+    vm help <subcomand>
+"
+
+#### Host and Infrastructure Management
+
+_hs_init=""
+
+#------------------------------------------------------------------------------
+
+_hs_switch="
+Usage:
+    vm switch info [name] [...]
+    vm switch create [-t <type>] [-i <interface>]
+    vm switch vlan <name> <on|off>
+    vm switch nat <name> <on|off>
+    vm switch address name <a.b.c.d/xx|none>
+    vm switch private <name> <on|off>
+    vm switch add <name> <interface>
+    vm switch remove <name> <interface>
+    vm switch destroy <name>
+
+Options:
+    -t <type>       Switch type: standard|manual|netgraph|vale|vxlan
+    -n <vlan-id>    VLAN ID for standard and vxlan switches
+    -i <interface>  Interface to attach to the switch
+    -m <size>       MTU size of the switch
+    -a <address>    IP address (CIDR notation) assigned to bridge interface
+    -b <bridge>     Specify an existing bridge when creating a manual switch
+    -p              Create a private switch
+"
+
+#------------------------------------------------------------------------------
+
+_hs_datastore="
+Usage:
+    vm datastore list
+    vm datastore add <name> <spec>
+    vm datastore remove <name>
+    vm datastore iso <name> <path>
+
+Examples:
+    vm datastore add anotherds \"zfs:anotherpool/datastore\"
+"
+
+_hs_get_set="
+Usage:
+    vm get <all|setting>
+    vm set <setting=value>
+
+Examples:
+    vm get all
+    vm get compress
+    vm set compress=\"zstd -T0\"
+    vm set decompress\"zstd -d\"
+"
+
+#------------------------------------------------------------------------------
+
+_hs_passthru="
+Usage:
+    vm passthru
+"
+
+#### VM Management
+
+#------------------------------------------------------------------------------
+#
+_hs_list="
+Usage:
+    vm list [-rv]
+
+Options:
+    -r      List running guests only
+    -v      Verbose mode
+"
+
+#------------------------------------------------------------------------------
+
+_hs_info="
+Usage:
+    vm info [name] ...
+"
+
+#------------------------------------------------------------------------------
+
+_hs_create="
+Usage:
+    vm create [option(s)] <name>
+
+Options:
+    -d <datastore>  Datastore
+    -f <template>   Template
+    -s <size>       Disk size (e.g., 20G, 1T)
+    -c <number>     Number of guest virtual CPUs
+    -m <size>       Size of guest physical memory (e.g., 256M, 16G, 1T)
+    -i <image>      VM disk image (raw or qcow2)
+    -C              Enable cloud-init
+    -u <file>       cloud-init user-data file (Requires -C)
+    -k <file>       SSH public key file       (Requires -C)
+    -n <string>     Network configuration     (Requires -C)
+
+Examples:
+    vm create -t linux linux1
+    vm create -t linux -s 40G -c 4 -m 16G linux2
+    vm create -t linux -c 4 -i example.qcow2 -C -k .ssh/authorized_keys linux3
+    vm create -m 4G freebsd1
+    vm create ... -C \\
+       -n \"ip=10.0.0.2/24,2001:db8::1234/64;nameservers=8.8.8.8\" netexample1
+"
+
+#------------------------------------------------------------------------------
+
+_hs_rename="
+Usage:
+    vm rename <name> <new-name>
+"
+
+#------------------------------------------------------------------------------
+
+_hs_clone="
+Usage:
+    vm clone <name[@snapshot]> <new-name>
+"
+
+#------------------------------------------------------------------------------
+
+_hs_destroy="
+Usage:
+    vm destroy [-f] <name>
+
+Options:
+    -f      Destroy a guest without prompting for confirmation
+"
+
+#------------------------------------------------------------------------------
+
+_hs_configure="
+Usage:
+    vm configure <name> [meta-data|user-data|network-config]
+"
+
+#------------------------------------------------------------------------------
+
+_hs_image="
+Usage:
+    vm image list
+    vm image create [-d <description>] [-u] <name>
+    vm image provision [-d <datastore>] <uuid> <name>
+    vm image destroy <uuid>
+
+Options:
+    -u                      Do not compress the image
+    -d <descr|datastore>    Description or datastore
+"
+
+#------------------------------------------------------------------------------
+
+_hs_migrate="
+Usage:
+    vm migrate [option(s)] <name> <host-migrate-to>
+
+Options:
+    -s              Start the guest on the remote host on completion
+    -1              Run only the 1st-stage migration
+    -2              Run only the 2nd-stage migration
+    -t              Enable triple-snapshot mode
+    -x              Destroy the local guest on completion
+    -i <snapshot>   Specify a snapshot for 2nd-stage migration
+"
+
+#------------------------------------------------------------------------------
+
+_hs_console="
+Usage:
+    vm console [-w] <name> [com1|com2]
+
+Options:
+    -w      Wait until a guest before connecting to console
+"
+
+#------------------------------------------------------------------------------
+
+_hs_add=""
+
+#### Start/Stop Operations
+
+_hs_install="
+Usage:
+    vm install [-fi] <name> <iso>
+
+Options:
+    -f      Start a guest in foreground
+    -i      Start a guest in interactive mode
+"
+
+#------------------------------------------------------------------------------
+
+_hs_start="
+Usage:
+    vm start [-fi] <name> [name] [...]
+
+Options:
+    -f      Start a guest in foreground
+    -i      Start a guest in interactive mode
+"
+
+#------------------------------------------------------------------------------
+
+_hs_stop="
+Usage:
+    vm stop <name> [name] [...]
+"
+
+#------------------------------------------------------------------------------
+
+_hs_restart="
+Usage:
+    vm restart <name>
+"
+
+#------------------------------------------------------------------------------
+
+_hs_suspend="
+Usage:
+    vm suspend <name> [name] [...]
+"
+
+#------------------------------------------------------------------------------
+
+_hs_discard="
+Usage:
+    vm discard [-f] <name>
+
+Options:
+    -f      Discard without prompting for confirmation
+"
+
+#------------------------------------------------------------------------------
+
+_hs_startall="
+Usage:
+    vm startall
+"
+
+#------------------------------------------------------------------------------
+
+_hs_stopall="
+Usage:
+    vm stopall [-f]
+
+Options:
+    -f      Stop all running guests in parallel
+"
+
+#------------------------------------------------------------------------------
+
+_hs_suspendall="
+Usage:
+    vm suspendall [-f]
+
+Options:
+    -f      Suspend all running guests in parallel
+"
+
+#------------------------------------------------------------------------------
+
+_hs_reset="
+Usage:
+    vm reset [-f] <name>
+
+Options:
+    -f      Reset without prompting for confirmation
+
+"
+
+#------------------------------------------------------------------------------
+
+_hs_poweroff="
+Usage:
+    vm poweroff [-f] <name>
+
+Options:
+    -f      Power off without prompting for confirmation
+"
+
+#### Snapshot Operations
+_hs_snapshot="
+Usage:
+    vm snapshot [-f] <name[@snapshot]>
+
+Options:
+    -f      Forcibly take a snapshot of running guest
+"
+
+#------------------------------------------------------------------------------
+
+_hs_rollback="
+Usage:
+    vm rollback [-r] <name[@snapshot]>
+
+Options:
+    -r      Roll back to a snapshot older than the latest one
+            (destroys any snapshots more recent than specified)
+"
+
+#### Image Management
+
+_hs_iso="
+Usage:
+    vm iso [-d datastore] [url]
+
+Options:
+    -d      Specify a datastore to store
+"
+
+#------------------------------------------------------------------------------
+
+_hs_img="
+Usage:
+    vm img [-d datastore] [url]
+
+Options:
+    -d      Specify a datastore to store
+"
+
+#------------------------------------------------------------------------------
+
