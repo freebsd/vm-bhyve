@@ -19,9 +19,15 @@ cmd::parse_info(){
 
     cmd::find "_cmd" "$1" "${CMD_VALID_LIST}"
 
+    # "vm <subcommand> -h" command also displays help about any subcommand
+    case "$2" in
+        -h|--help) help::show "${_cmd}" ;;
+    esac
+
     case "${_cmd}" in
         version) util::version && exit ;;
         usage)   util::usage ;;
+        # "vm help <subcommand>" displays help about any subcommand
         help)
             [ -z "$2" ] && help::_help
             help::show "$2"
