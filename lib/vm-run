@@ -126,11 +126,7 @@ vm::run(){
 
     # set utc time in opts if requested
     if config::yesno "utctime" yes; then
-        if [ ${VERSION_BSD} -ge 1002000 ]; then
-            _opts="${_opts} -u"
-        else
-            util::log "guest" "${_name}" "warning; utc time requested but not available pre FreeBSD 10.2"
-        fi
+        _opts="${_opts} -u"
     fi
 
     # send bhyve output to bhyve.log if debug=yes
@@ -293,11 +289,6 @@ vm::run(){
 #
 vm::uefi(){
     local _bootrom
-
-    if [ ${VERSION_BSD} -lt 1002509 ]; then
-        util::log "guest" "${_name}" "fatal; uefi guests can only be run on FreeBSD 10.3 or newer"
-        exit 15
-    fi
 
     case "${_loader}" in
         uefi-devel)
@@ -472,18 +463,13 @@ vm::bhyve_device_disks(){
     # check if user has set a per-controller device limit
     config::get "_ahci_multi" "ahci_device_limit"
 
-    if [ ${VERSION_BSD} -ge 1200000 ] || \
-       [ ${VERSION_BSD} -ge 1101000 ] || \
-       [ ${VERSION_BSD} -ge 1004000 ]; then
+    if [ -n "${_ahci_multi}" ]; then
 
-        if [ -n "${_ahci_multi}" ]; then
+        # see if it's numeric
+        echo "${_ahci_multi}" | egrep -iqs '^[0-9]+$'
 
-            # see if it's numeric
-            echo "${_ahci_multi}" | egrep -iqs '^[0-9]+$'
-
-            [ $? -eq 0 -a ${_ahci_multi} -gt 1 -a ${_ahci_multi} -le 32 ] && \
-                _ahci_limit="${_ahci_multi}"
-        fi
+        [ $? -eq 0 -a ${_ahci_multi} -gt 1 -a ${_ahci_multi} -le 32 ] && \
+            _ahci_limit="${_ahci_multi}"
     fi
 
     # get all disks
@@ -649,12 +635,6 @@ vm::bhyve_device_fbuf(){
     # check graphics enabled
     ! config::yesno "graphics" && return 0
 
-    # only available in 11+
-    if [ ${VERSION_BSD} -lt 1100000 ]; then
-        util::log "guest" "${_name}" "warning; UEFI graphics is only available in FreeBSD 11 and newer"
-        return 1
-    fi
-
     config::get "_port" "graphics_port"
     config::get "_listen" "graphics_listen"
     config::get "_res" "graphics_res"
@@ -719,8 +699,6 @@ vm::bhyve_device_fbuf_clear_wait(){
 #
 vm::bhyve_device_mouse(){
 
-    [ ${VERSION_BSD} -lt 1100000 ] && return 0
-
     # add a tablet device if enabled
     if config::yesno "xhci_mouse"; then
         _devices="${_devices} -s ${_bus}:${_slot}:0,xhci,tablet"
@@ -762,7 +740,6 @@ vm::bhyve_device_console(){
     local _console _curr=0
     local _dev_str
 
-    [ ${VERSION_BSD} -lt 1102000 ] && return 0
     config::get "_console" "virt_console0"
     [ -z "${_console}" ] && return 0
 
@@ -837,7 +814,7 @@ vm::bhyve_device_passthru(){
         _slot=$((_slot + 1))
 
         # add wired memory for 10.3+
-        [ ${VERSION_BSD} -ge 1003000 ] && _opts="${_opts} -S" && _wiredmem="1"
+        _opts="${_opts} -S" && _wiredmem="1"
     fi
     if [ ${_slot} -ge ${_maxslots} ]; then
         _slot=0

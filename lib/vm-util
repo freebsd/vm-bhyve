@@ -378,11 +378,7 @@ util::check_name(){
     local _maxlen="$2"
 
     if [ -z "${_maxlen}" ]; then
-        if [ ${VERSION_BSD} -ge 1300000 ]; then
-            : ${_maxlen:=229}
-        else
-            : ${_maxlen:=30}
-        fi
+        : ${_maxlen:=229}
     fi
 
     echo "${_name}" | egrep -iqs "^[a-z0-9][.a-z0-9_-]{0,${_maxlen}}[a-z0-9]\$"
