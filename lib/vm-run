@@ -1008,29 +1008,21 @@ vm::has_saved_state(){
 # there's no worry of guest problems due to it changing.
 # bhyve is allocated 58:9c:fc:0x:xx:xx, so we try and
 # randomise the last 20 bits (5 hex digits).
-# using guest name, interface number and time as seed,
-# with an incrementing integer just in case we happen to
-# get 5 zeros.
 #
 vm::generate_static_mac(){
-    local _time=$(date +%s)
-    local _key _part="0:00:00"
-    local _base _int=0
+    # device identifier part of MAC address
+    local _dev_id=""
 
-    _base="${_name}:${_num}:${_time}"
-
-    # generate the last 5 digits
-    # make sure we don't get 0:00:00 (see sys/net/ieee_oui.h)
-    while [ "${_part}" = "0:00:00" ]; do
-        _key="${_base}:${_int}"
-        _part=$(md5 -qs "${_key}" | awk 'BEGIN {FS="";OFS=":"}; {print $1,$2$3,$4$5}')
-        _int=$((_int + 1))
+    # generate device identifier part
+    # 00:00:00 must not be used (see sys/net/ieee_oui.h)
+    while [ -z "${_dev_id}" -o "${_dev_id}" = "00:00:00" ]; do
+          _dev_id=$(openssl rand -hex 3 | sed 's/../&:/g; s/^./0/; s/:$//')
     done
 
     # add base bhyve OUI
-    _mac="58:9c:fc:0${_part}"
+    _mac="58:9c:fc:${_dev_id}"
 
-    util::log "guest" "${_name}" "generated static mac ${_mac} (based on '${_key}')"
+    util::log "guest" "${_name}" "generated static mac ${_mac}"
     config::set "${_name}" "network${_num}_mac" "${_mac}"
 }
 
