@@ -240,7 +240,10 @@ vm::run(){
         rctl::set &
 
         # actually run bhyve!
-        # we're already in the background so we just wait for it to exit
+        # we're already in the background so we just wait for it to exit.
+        # Devices must come before options due to how bhyve creates devices
+        # internally from the arguments.  -s must come before -o for any one
+        # device.
         bhyve ${_devices} \
               $@ \
               ${_iso_dev} \
