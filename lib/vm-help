@@ -238,6 +238,22 @@ Options:
 
 #------------------------------------------------------------------------------
 
+_hs_tags="
+Usage:
+    vm tags add <name> <tag1> [tag2] [...]
+    vm tags remove <name> <tag1> [tag2] [...]
+    vm tags find <tag>
+    vm tags list <name>
+
+Subcommands:
+    add     Add tag(s) on a guest
+    remove  Remove tag(s) on a guest
+    list    List tags assigned to a guest
+    find    Show a list of guests with a given tag
+"
+
+#------------------------------------------------------------------------------
+
 #### Start/Stop Operations
 
 _hs_install="

@@ -5,7 +5,7 @@
 CMD_VALID_LIST="init,switch,datastore,image,get,set,list,create,destroy,rename,install,start,stop,restart"
 CMD_VALID_LIST="${CMD_VALID_LIST},add,reset,poweroff,startall,stopall,console,iso,img,configure,passthru,_run"
 CMD_VALID_LIST="${CMD_VALID_LIST},info,clone,snapshot,rollback,migrate,version,usage,edit"
-CMD_VALID_LIST="${CMD_VALID_LIST},suspend,suspendall,discard,help"
+CMD_VALID_LIST="${CMD_VALID_LIST},suspend,suspendall,discard,help,tags"
 
 # cmd: vm ...
 #
@@ -84,7 +84,30 @@ cmd::parse(){
         snapshot)  zfs::snapshot "$@" ;;
         rollback)  zfs::rollback "$@" ;;
         migrate)   migration::run "$@" ;;
+        tags)      cmd::parse_tags "$@" ;;
         *)         util::err "unknown command '${_user_cmd}'. please run 'vm usage' or view the manpage for help" ;;
+    esac
+}
+
+# cmd: vm tags ...
+#
+# parse tags command
+cmd::parse_tags(){
+    local _cmd
+
+    [ -z "$1" ] && util::usage && exit 1
+
+    # try to find a matching command
+    cmd::find "_cmd" "$1" "add,remove,list,find,help" || util::usage
+    shift
+
+    case "${_cmd}" in
+        add)     tags::add "$@" ;;
+        remove)  tags::remove "$@" ;;
+        list)    tags::list "$@" ;;
+        find)    tags::find "$@" ;;
+        help)    help::show "tags" ;;
+        *)       util::err "unknown command '${_user_cmd}'. please run 'vm usage' or view the manpage for help" ;;
     esac
 }
 

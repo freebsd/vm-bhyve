@@ -183,6 +183,7 @@ VM Management
   image         Manage images created from provisioned guests
   console       Open a console to a guest
   migrate       Transfer a guest from one to another using SSH
+  tags          Add or remove tags on a guest
 
 VM Start/Stop Operations
   install       Start a guest from a specified ISO for installation
