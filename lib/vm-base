@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # SPDX-FileCopyrightText: 2018 Matt Churchyard <churchers@gmail.com>
 
-VERSION=1.7.0
+VERSION=1.7.1
 VERSION_BSD=$(uname -K)
 PATH=${PATH}:/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin
 

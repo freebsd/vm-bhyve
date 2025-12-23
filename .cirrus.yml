@@ -2,7 +2,7 @@ task:
   name: Lint manpages
   matrix:
     freebsd_instance:
-      image_family: freebsd-14-2
+      image_family: freebsd-14-3
 
   prepare_script:
     - pkg install -y tmux

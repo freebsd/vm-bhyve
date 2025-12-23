@@ -240,9 +240,12 @@ vm::run(){
         rctl::set &
 
         # actually run bhyve!
-        # we're already in the background so we just wait for it to exit
-        bhyve $@ \
-              ${_devices} \
+        # we're already in the background so we just wait for it to exit.
+        # Devices must come before options due to how bhyve creates devices
+        # internally from the arguments.  -s must come before -o for any one
+        # device.
+        bhyve ${_devices} \
+              $@ \
               ${_iso_dev} \
               ${_comstring} \
               ${_name} 2> "${_logpath}"
@@ -795,18 +798,19 @@ vm::bhyve_device_console(){
 # @modifies _devices _slot _bus _opts _wiredmem
 #
 vm::bhyve_device_passthru(){
-    local _dev _orig_slot _func=0
+    local _dev _options _orig_slot _func=0
     local _last_orig_slot
     local _num=0
 
     while true; do
         config::get "_dev" "passthru${_num}"
+        config::get "_options" "passthru${_num}_options"
         [ -z "${_dev}" ] && break
 
         # see if there's an = sign
         # we allow A/B/C=D:E to force D:E as the guest SLOT:FUNC
         if echo "${_dev}" | grep -qs "="; then
-            _devices="${_devices} -s ${_bus}:${_dev##*=},passthru,${_dev%%=*}"
+            _devices="${_devices} -s ${_bus}:${_dev##*=},passthru,${_dev%%=*}${_options:+,${_options}}"
         else
             _orig_slot=${_dev%%/*}
 
@@ -824,7 +828,7 @@ vm::bhyve_device_passthru(){
 	    _maxslots=32
         fi
 
-            _devices="${_devices} -s ${_bus}:${_slot}:${_func},passthru,${_dev}"
+            _devices="${_devices} -s ${_bus}:${_slot}:${_func},passthru,${_dev}${_options:+,${_options}}"
             _last_orig_slot=${_orig_slot}
             _func=$((_func + 1))
         fi
@@ -1007,29 +1011,21 @@ vm::has_saved_state(){
 # there's no worry of guest problems due to it changing.
 # bhyve is allocated 58:9c:fc:0x:xx:xx, so we try and
 # randomise the last 20 bits (5 hex digits).
-# using guest name, interface number and time as seed,
-# with an incrementing integer just in case we happen to
-# get 5 zeros.
 #
 vm::generate_static_mac(){
-    local _time=$(date +%s)
-    local _key _part="0:00:00"
-    local _base _int=0
+    # device identifier part of MAC address
+    local _dev_id=""
 
-    _base="${_name}:${_num}:${_time}"
-
-    # generate the last 5 digits
-    # make sure we don't get 0:00:00 (see sys/net/ieee_oui.h)
-    while [ "${_part}" = "0:00:00" ]; do
-        _key="${_base}:${_int}"
-        _part=$(md5 -qs "${_key}" | awk 'BEGIN {FS="";OFS=":"}; {print $1,$2$3,$4$5}')
-        _int=$((_int + 1))
+    # generate device identifier part
+    # 00:00:00 must not be used (see sys/net/ieee_oui.h)
+    while [ -z "${_dev_id}" -o "${_dev_id}" = "00:00:00" ]; do
+          _dev_id=$(openssl rand -hex 3 | sed 's/../&:/g; s/^./0/; s/:$//')
     done
 
     # add base bhyve OUI
-    _mac="58:9c:fc:0${_part}"
+    _mac="58:9c:fc:${_dev_id}"
 
-    util::log "guest" "${_name}" "generated static mac ${_mac} (based on '${_key}')"
+    util::log "guest" "${_name}" "generated static mac ${_mac}"
     config::set "${_name}" "network${_num}_mac" "${_mac}"
 }
 
