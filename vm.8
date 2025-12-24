@@ -181,6 +181,22 @@
 .Op Fl i Ar snapshot
 .Op Fl d Ar datastore
 .Ar guest host
+.Nm
+.Cm tags add
+.Ar name tag1
+.Op Ar tag2
+.Op Ar ...
+.Nm
+.Cm tags remove
+.Ar name tag1
+.Op Ar tag2
+.Op Ar ...
+.Nm
+.Cm tags find
+.Ar tag
+.Nm
+.Cm tags list
+.Ar name
 .Pp
 .Nm
 .Cm iso
@@ -1145,6 +1161,30 @@ When running the second stage of migration, this parameter is used to specify
 the name of the snapshot to base the incremental send on.
 This snapshot must exist on both hosts.
 .El
+.It Xo
+.Cm tags add
+.Ar name
+.Ar tag1 Op tag2 ...
+.Xc
+Add tag(s) on the named virtual machine.
+Multiple tags can be added in one operation.
+.It Xo
+.Cm tags remove
+.Ar name
+.Ar tag1 Op tag2 ...
+.Xc
+Remove tag(s) on the named virtual machine.
+Multiple tags can be removed in one operation.
+.It Xo
+.Cm tags find
+.Ar tag
+.Xc
+List virtual machines with the specified tag as a space-separated list.
+.It Xo
+.Cm tags list
+.Ar name
+.Xc
+List tags attached to the specified virtual machine.
 .It Xo
 .Cm iso
 .Op Ar -d datastore
