@@ -31,7 +31,7 @@ switch::standard::init(){
     switch::set_viid "${_name}" "${_id}"
 
     # randomise mac if feature is available
-    [ ${VERSION_BSD} -ge 1102000 ] && ifconfig "${_id}" link random
+    ifconfig "${_id}" link random
 
     # try to set ip address
     config::core::get "_addr" "addr_${_name}"
