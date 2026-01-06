@@ -25,10 +25,18 @@ Some of the main features include:
 * `sysutils/tmux` is needed to use tmux console access instead of cu/nmdm
 
 
-##### See the GitHub wiki for more information and examples.
+### See the GitHub wiki for more information and examples.
 
-For most users, I recommend using the version in ports (1.1+).
+For most users, I recommend using the version in ports (1.7+).
 Main development happens in the master branch on GitHub and it may contain broken or incomplete features.
+
+### Support Lifecycle
+
+vm-bhyve support aligns with FreeBSD's official support lifecycle.
+
+In other words, the latest vm-bhyve release supports the FreeBSD versions
+that are supported at the time of its release.  See also
+[FreeBSD Release Information](https://www.freebsd.org/releases/).
 
 ## Quick-Start
 
