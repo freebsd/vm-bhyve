@@ -48,7 +48,7 @@ switch::vxlan::init(){
 
     switch::set_viid "${_name}" "${_id}"
 
-    # randomise mac if feature is available
+    # randomise mac
     ifconfig "${_id}" link random
 
     # bridge vxlan to our guest switch

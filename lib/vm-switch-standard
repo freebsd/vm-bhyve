@@ -30,7 +30,7 @@ switch::standard::init(){
 
     switch::set_viid "${_name}" "${_id}"
 
-    # randomise mac if feature is available
+    # randomise mac
     ifconfig "${_id}" link random
 
     # try to set ip address
