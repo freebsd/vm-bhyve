@@ -766,8 +766,10 @@ vm::bhyve_device_console(){
 }
 
 # get any pci passthrough devices
-# FreeBSD 11 needs wired memory so update _opts in that case if
-# we have any pass through devices
+#
+# pci passthru requires guest memory to be wired so update _opts
+# in that case if we have any pass through devices
+# see also usr.sbin/bhyve/pci_passthru.c
 #
 # @modifies _devices _slot _bus _opts _wiredmem
 #
@@ -813,7 +815,7 @@ vm::bhyve_device_passthru(){
     if [ ${_num} -ge 1 ]; then
         _slot=$((_slot + 1))
 
-        # add wired memory for 10.3+
+        # passthru requires guest memory to be wired
         _opts="${_opts} -S" && _wiredmem="1"
     fi
     if [ ${_slot} -ge ${_maxslots} ]; then
