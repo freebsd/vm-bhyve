@@ -57,6 +57,15 @@ guest::load(){
 
             if [ -n "${_iso}" ]; then
                 _args="${_args} -d ${_iso}"
+            elif [ "${_bootdisk_dev}" = "9p" ]; then
+                local p9dev p9path
+                p9dev=$(echo "${_bootdisk}" | awk -F = '{print $1}')
+                p9path=$(echo "${_bootdisk}" | awk -F = '{print $2}')
+                if [ -z "${p9dev}" -o -z "${p9path}" ]; then
+                    util::log "guest" "${_name}" "fatal; virtio-9p boot disk requires format devname=/path/to/root"
+                    return 15
+                fi
+                _args="${_args} -h ${p9path} -e vfs.root.mountfrom=p9fs:${p9dev}"
             else
                 _args="${_args} -d ${_bootdisk}"
             fi
