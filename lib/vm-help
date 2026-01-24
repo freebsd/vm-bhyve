@@ -54,6 +54,7 @@ Usage:
     vm switch vlan <name> <on|off>
     vm switch nat <name> <on|off>
     vm switch address name <a.b.c.d/xx|none>
+    vm switch address6 name <a:b:c:d::x/xx|none>
     vm switch private <name> <on|off>
     vm switch add <name> <interface>
     vm switch remove <name> <interface>
@@ -65,6 +66,7 @@ Options:
     -i <interface>  Interface to attach to the switch
     -m <size>       MTU size of the switch
     -a <address>    IP address (CIDR notation) assigned to bridge interface
+    -6 <ipv6>		IPv6 address (CIDR notation) assigned to bridge interface
     -b <bridge>     Specify an existing bridge when creating a manual switch
     -p              Create a private switch
 "

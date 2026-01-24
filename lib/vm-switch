@@ -40,12 +40,12 @@ switch::init(){
 #
 switch::list(){
     local _switchlist _switch _type
-    local _id _format="%s^%s^%s^%s^%s^%s^%s^%s\n"
+    local _id _format="%s^%s^%s^%s^%s^%s^%s^%s^%s\n"
 
     config::core::get "_switchlist" "switch_list"
 
     {
-        printf "${_format}" "NAME" "TYPE" "IFACE" "ADDRESS" "PRIVATE" "MTU" "VLAN" "PORTS"
+        printf "${_format}" "NAME" "TYPE" "IFACE" "ADDRESS" "ADDRESS6" "PRIVATE" "MTU" "VLAN" "PORTS"
 
         if [ -n "${_switchlist}" ]; then
             for _switch in ${_switchlist}; do
@@ -71,16 +71,17 @@ switch::list(){
 switch::create(){
     local _switch
     local _type="standard"
-    local _list _curr _vlan _if _bridge _addr _mtu _priv
+    local _list _curr _vlan _if _bridge _addr _addr6 _mtu _priv
 
     # process options
-    while getopts t:i:n:b:a:m:p _opt; do
+    while getopts t:i:n:b:a:6:m:p _opt; do
         case ${_opt} in
             t) _type="${OPTARG}" ;;
             i) _if="${OPTARG}" ;;
             n) _vlan="${OPTARG}" ;;
             b) _bridge="${OPTARG}" ;;
             a) _addr="${OPTARG}" ;;
+            6) _addr6="${OPTARG}" ;;
             m) _mtu="${OPTARG}" ;;
             p) _priv="yes" ;;
             *) util::usage ;;
@@ -111,6 +112,12 @@ switch::create(){
     if [ -n "${_addr}" ]; then
         echo "${_addr}" | egrep -qs '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}$'
         [ $? -eq 0 ] || util::err "address must be supplied in CIDR notation (a.b.c.d/prefix-len)"
+    fi
+
+    # check ipv6 address
+    if [ -n "${_addr6}" ]; then
+        echo "${_addr6}" | egrep -qs '(::)?[0-9a-fA-F]{1,4}(::?[0-9a-fA-F]{1,4}){1,7}(::)?\/[0-9]{1,3}'
+        [ $? -eq 0 ] || util::err "address6 must be supplied in CIDR notation (e.g. 2001:1a:2b:3c:4d::1/64)"
     fi
 
     # check mtu
@@ -158,7 +165,7 @@ switch::remove(){
     if [ $? -eq 0 ]; then
         config::core::remove "switch_list" "${_switch}"
         config::core::remove "ports_${_switch} vlan_${_switch} nat_${_switch} type_${_switch}"
-        config::core::remove "addr_${_switch} private_${_switch} mtu_${_switch}"
+        config::core::remove "addr_${_switch} addr6_${_switch} private_${_switch} mtu_${_switch}"
     else
         util::err "failed to remove virtual switch"
     fi
@@ -319,6 +326,38 @@ switch::address(){
 
     case "${_type}" in
         standard) switch::standard::address "${_switch}" "${_addr}" ;;
+        manual)   ;&
+        netgraph) ;&
+        vale)     ;&
+        vxlan)    util::err "feature not currently supported on switches of this type" ;;
+        *)        util::err "unable to configure switch of unknown type" ;;
+    esac
+}
+
+# set or remove ipv6 address from a virtual switch
+#
+# @param string _switch name of the switch
+# @param string _addr6 the ip address to add (or "none" to remove)
+#
+switch::address6(){
+    local _switch="$1"
+    local _addr6="$2"
+    local _id _type
+
+    [ -z "${_switch}" ] && util::usage
+
+    switch::id "_id" "${_switch}"
+    switch::type "_type" "${_switch}"
+    [ -z "${_id}" ] && util::err "unable to locate specified virtual switch"
+
+    # check address
+    if [ -n "${_addr6}" ] && [ "${_addr6}" != "none" ]; then
+        echo "${_addr6}" | egrep -qs '(::)?[0-9a-fA-F]{1,4}(::?[0-9a-fA-F]{1,4}){1,7}(::)?\/[0-9]{1,3}'
+        [ $? -eq 0 ] || util::err "address6 must be supplied in CIDR notation (e.g. 2001:1a:2b:3c:4d::1/64)"
+    fi
+
+    case "${_type}" in
+        standard) switch::standard::address6 "${_switch}" "${_addr6}" ;;
         manual)   ;&
         netgraph) ;&
         vale)     ;&

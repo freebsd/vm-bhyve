@@ -55,16 +55,17 @@ switch::standard::init(){
 switch::standard::show(){
     local _name="$1"
     local _format="$2"
-    local _id _vlan _ports _addr _mtu _priv
+    local _id _vlan _ports _addr _addr6 _mtu _priv
 
     switch::find "_id" "${_name}"
     config::core::get "_ports" "ports_${_name}"
     config::core::get "_vlan" "vlan_${_name}"
     config::core::get "_addr" "addr_${_name}"
+    config::core::get "_addr6" "addr6_${_name}"
     config::core::get "_mtu" "mtu_${_name}"
     config::core::get "_priv" "private_${_name}" "no"
 
-    printf "${_format}" "${_name}" "standard" "${_id:--}" "${_addr:--}" "${_priv}" "${_mtu:--}" \
+    printf "${_format}" "${_name}" "standard" "${_id:--}" "${_addr:--}" "${_addr6:--}" "${_priv}" "${_mtu:--}" \
       "${_vlan:--}" "${_ports:--}"
 }
 
@@ -79,6 +80,7 @@ switch::standard::create(){
     [ -n "${_if}" ] && config::core::set "ports_${_switch}" "${_if}"
     [ -n "${_vlan}" ] && config::core::set "vlan_${_switch}" "${_vlan}"
     [ -n "${_addr}" ] && config::core::set "addr_${_switch}" "${_addr}"
+    [ -n "${_addr6}" ] && config::core::set "addr6_${_switch}" "${_addr6}"
     [ -n "${_priv}" ] && config::core::set "private_${_switch}" "${_priv}"
     [ -n "${_mtu}" ] && config::core::set "mtu_${_switch}" "${_mtu}"
 
@@ -164,7 +166,7 @@ switch::standard::vlan(){
 
 # set or remove ip address
 #
-# @param string _swtich name of the switch
+# @param string _switch name of the switch
 # @param string _addr address or "none"
 # @scope _id switch if from parent switch::address
 #
@@ -184,6 +186,31 @@ switch::standard::address(){
 
         config::core::set "addr_${_switch}" "${_addr}"
         ifconfig "${_id}" "${_addr}"
+    fi
+}
+
+# set or remove ipv6 address
+#
+# @param string _switch name of the switch
+# @param string _addr6 address or "none"
+# @scope _id switch if from parent switch::address
+#
+switch::standard::address6(){
+    local _switch="$1"
+    local _addr6="$2"
+    local _curr
+
+    if [ "${_addr6}" = "none" ]; then
+
+        config::core::get "_curr" "addr6_${_switch}"
+        [ $? -eq 0 ] || util::err "unable to locate an existing address for this switch"
+
+        config::core::remove "addr6_${_switch}"
+        ifconfig "${_id}" inet6 "${_curr}" delete
+    else
+
+        config::core::set "addr6_${_switch}" "${_addr6}"
+        ifconfig "${_id}" inet6 "${_addr6}" auto_linklocal
     fi
 }
 
