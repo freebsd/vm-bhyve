@@ -41,9 +41,6 @@ rctl::set(){
         [ $? -eq 0 ] && util::log "guest" "${_name}" " pcpu=${_pcpu}"
     fi
 
-    # at this point we can return if < FreeBSD 11
-    [ ${VERSION_BSD} -lt 1100000 ] && return 0
-
     if [ -n "${_rbps}" ]; then
         /usr/bin/rctl -a process:${_pid}:readbps:throttle=${_rbps} >/dev/null 2>&1
         [ $? -eq 0 ] && util::log "guest" " readbps=${_rbps}"

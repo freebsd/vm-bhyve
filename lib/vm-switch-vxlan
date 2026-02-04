@@ -48,8 +48,8 @@ switch::vxlan::init(){
 
     switch::set_viid "${_name}" "${_id}"
 
-    # randomise mac if feature is available
-    [ ${VERSION_BSD} -ge 1102000 ] && ifconfig "${_id}" link random
+    # randomise mac
+    ifconfig "${_id}" link random
 
     # bridge vxlan to our guest switch
     # static route traffic for this multicast address via our specified interface
