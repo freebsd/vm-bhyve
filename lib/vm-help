@@ -50,16 +50,16 @@ _hs_init=""
 _hs_switch="
 Usage:
     vm switch info [name] [...]
-    vm switch create [-t <type>] [-i <interface>]
+    vm switch create [options] <name>
     vm switch vlan <name> <on|off>
     vm switch nat <name> <on|off>
-    vm switch address name <a.b.c.d/xx|none>
+    vm switch address <name> <a.b.c.d/xx|none>
     vm switch private <name> <on|off>
     vm switch add <name> <interface>
     vm switch remove <name> <interface>
     vm switch destroy <name>
 
-Options:
+Options (create):
     -t <type>       Switch type: standard|manual|netgraph|vale|vxlan
     -n <vlan-id>    VLAN ID for standard and vxlan switches
     -i <interface>  Interface to attach to the switch
