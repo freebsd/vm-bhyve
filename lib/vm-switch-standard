@@ -214,10 +214,10 @@ switch::standard::address(){
         return 0;
     fi
 
-    if [ "${_addr}" = "none" ]; then
-        # remove all ip addresses
-        config::core::get "_curr" "addr_${_switch}"
-        config::core::get "_curr6"  "addr6_${_switch}"
+    config::core::get "_curr" "addr_${_switch}"
+    config::core::get "_curr6"  "addr6_${_switch}"
+
+    if [ "${_addr}" = "none" ]; then # remove all ip addresses
 
         [ -z "${_curr}" -a -z "${_curr6}" ] && \
             util::err "unable to locate an existing address for this switch"
@@ -235,10 +235,17 @@ switch::standard::address(){
         # add ip address
         case "${_addr}" in
             *:*) # IPv6
+                [ "${_curr6}" = "${_addr}" ] &&  util::err "The specified IP address is already assigned to this switch."
+                [ -n "${_curr6}" ] && { util::confirm "This switch already has ${_curr6} addigned, replace it?" || exit 0; }
                 config::core::set "addr6_${_switch}" "${_addr}"
                 ifconfig "${_id}" inet6 "${_addr}" auto_linklocal
+                # remove the previous IPv6 address
+                # because the current config::core design assumes a single IPv6 address per a switch
+                [ -n "${_curr6}" ] && ifconfig "${_id}" inet6 "${_curr6}" delete
                 ;;
             *) # IPv4
+                [ "${_curr}" = "${_addr}" ] &&  util::err "The specified IP address is already assigned to this switch."
+                [ -n "${_curr}" ] && { util::confirm "This switch already has ${_curr} assigned, replace it?" || exit 0; }
                 config::core::set "addr_${_switch}" "${_addr}"
                 ifconfig "${_id}" inet "${_addr}"
                 ;;
