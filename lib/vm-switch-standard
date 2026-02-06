@@ -55,17 +55,31 @@ switch::standard::init(){
 switch::standard::show(){
     local _name="$1"
     local _format="$2"
-    local _id _vlan _ports _addr _mtu _priv
+    local _id _vlan _ports _addr _addr6 _mtu _priv
 
     switch::find "_id" "${_name}"
     config::core::get "_ports" "ports_${_name}"
     config::core::get "_vlan" "vlan_${_name}"
     config::core::get "_addr" "addr_${_name}"
+    config::core::get "_addr6" "addr6_${_name}"
     config::core::get "_mtu" "mtu_${_name}"
     config::core::get "_priv" "private_${_name}" "no"
 
-    printf "${_format}" "${_name}" "standard" "${_id:--}" "${_addr:--}" "${_priv}" "${_mtu:--}" \
-      "${_vlan:--}" "${_ports:--}"
+    if [ -n "${_addr}" -a -n "${_addr6}" ]; then
+      # if the interface has both IPv4 and IPv6 addresses, print IPv4 first
+      printf "${_format}" "${_name}" "standard" "${_id:--}" "${_addr:--}" "${_priv}" "${_mtu:--}" \
+        "${_vlan:--}" "${_ports:--}"
+
+      # and IPv6 next
+      printf "${_format}" \
+                "$(util::pad_spaces "${_name}")" "$(util::pad_spaces "standard")" \
+                "$(util::pad_spaces "${_id}")" "${_addr6}" \
+                "$(util::pad_spaces "${_priv}")" "$(util::pad_spaces "${_mtu}")" \
+                "$(util::pad_spaces "${_vlan}")" "$(util::pad_spaces "${_ports}")"
+    else
+      printf "${_format}" "${_name}" "standard" "${_id:--}" "${_addr:-${_addr6:--}}" "${_priv}" \
+        "${_mtu:--}" "${_vlan:--}" "${_ports:--}"
+    fi
 }
 
 # create a standard virtual switch
