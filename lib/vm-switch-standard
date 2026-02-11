@@ -236,7 +236,7 @@ switch::standard::address(){
         case "${_addr}" in
             *:*) # IPv6
                 [ "${_curr6}" = "${_addr}" ] &&  util::err "The specified IP address is already assigned to this switch."
-                [ -n "${_curr6}" ] && { util::confirm "This switch already has ${_curr6} addigned, replace it?" || exit 0; }
+                [ -n "${_curr6}" ] && { util::confirm "This switch already has ${_curr6} assigned, replace it?" || exit 0; }
                 config::core::set "addr6_${_switch}" "${_addr}"
                 ifconfig "${_id}" inet6 "${_addr}" auto_linklocal
                 # remove the previous IPv6 address
