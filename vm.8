@@ -47,7 +47,8 @@
 .Ar name on|off
 .Nm
 .Cm switch address
-.Ar name a.b.c.d/xx|none
+.Ar name a.b.c.d/xx|3fff::abcd/xx|none
+.Op delete
 .Nm
 .Cm switch private
 .Ar name on|off
@@ -568,12 +569,14 @@ removed from the bridge, reconfigured, then re-added.
 To remove the VLAN configuration from a virtual switch, specify a
 .Ar vlan-id
 of 0.
-.It Cm switch address Ar name Ar a.b.c.d/xx|none
-Configure an IP address for the specified virtual switch.
-The address should be specified in CIDR notation.
-To remove an address, specify
+.It Cm switch address Ar name Ar a.b.c.d/xx|3fff::abcd/xx|none Op delete
+Configure IP addresses for the specified virtual switch.
+The address should be specified in IPv4 or IPv6 CIDR notation.
+To remove all IP addresses from the switch, specify
 .Pa none
 in place of the address.
+To remove only the specified IP address, append the keyword
+.Pa delete .
 .Pp
 If NAT functionality is required, please configure an address on the switch to
 become the gateway address for guests.
