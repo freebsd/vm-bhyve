@@ -51,7 +51,7 @@ _hs_switch="
 Usage:
     vm switch info [name] [...]
     vm switch create [options] <name>
-    vm switch vlan <name> <on|off>
+    vm switch vlan <name> <vlan-id>
     vm switch nat <name> <on|off>
     vm switch address <name> <a.b.c.d/xx|none>
     vm switch private <name> <on|off>
