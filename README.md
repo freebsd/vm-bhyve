@@ -16,16 +16,18 @@ Some of the main features include:
 * Designed with multiple compute nodes + shared storage in mind (NFS/iSCSI/etc)
 * Multiple datastores
 * VNC graphics & tmux support (1.1+ only. See wiki for instructions)
-* Dependency free**
+* Dependency free[[*](#optional-dependencies)]
 
-** Some additional packages may be required in certain circumstances -
+### Optional dependencies
+
+Some additional packages may be required in certain circumstances:
 
 * `sysutils/grub2-bhyve` is required to run guests that need a Grub bootloader
 * `sysutils/bhyve-firmware` is required to run UEFI guests
 * `sysutils/tmux` is needed to use tmux console access instead of cu/nmdm
+* `net-mgmt/gnu-ipcalc` performs stricter CIDR notation vailidation when available
 
-
-### See the GitHub wiki for more information and examples.
+### See the GitHub wiki for more information and examples
 
 For most users, I recommend using the version in ports (1.7+).
 Main development happens in the master branch on GitHub and it may contain broken or incomplete features.

@@ -109,8 +109,8 @@ switch::create(){
 
     # check address
     if [ -n "${_addr}" ]; then
-        echo "${_addr}" | egrep -qs '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}$'
-        [ $? -eq 0 ] || util::err "address must be supplied in CIDR notation (a.b.c.d/prefix-len)"
+        util::validate_cidr "${_addr}"
+        [ $? -eq 0 ] || util::err "address must be supplied in CIDR notation (e.g. 192.0.2.1/24, 3fff::1/64)"
     fi
 
     # check mtu
@@ -158,7 +158,7 @@ switch::remove(){
     if [ $? -eq 0 ]; then
         config::core::remove "switch_list" "${_switch}"
         config::core::remove "ports_${_switch} vlan_${_switch} nat_${_switch} type_${_switch}"
-        config::core::remove "addr_${_switch} private_${_switch} mtu_${_switch}"
+        config::core::remove "addr_${_switch} addr6_${_switch} private_${_switch} mtu_${_switch}"
     else
         util::err "failed to remove virtual switch"
     fi
@@ -303,6 +303,7 @@ switch::nat(){
 switch::address(){
     local _switch="$1"
     local _addr="$2"
+    local _delete="$3"
     local _id _type
 
     [ -z "${_switch}" ] && util::usage
@@ -313,12 +314,12 @@ switch::address(){
 
     # check address
     if [ -n "${_addr}" ] && [ "${_addr}" != "none" ]; then
-        echo "${_addr}" | egrep -qs '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}$'
-        [ $? -eq 0 ] || util::err "address must be supplied in CIDR notation (a.b.c.d/prefix-len)"
+        util::validate_cidr "${_addr}"
+        [ $? -eq 0 ] || util::err "address must be supplied in cidr notation (e.g. 192.0.2.1/24, 3fff::1/64)"
     fi
 
     case "${_type}" in
-        standard) switch::standard::address "${_switch}" "${_addr}" ;;
+        standard) switch::standard::address "${_switch}" "${_addr}" "${_delete}";;
         manual)   ;&
         netgraph) ;&
         vale)     ;&
