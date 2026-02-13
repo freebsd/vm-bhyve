@@ -95,10 +95,10 @@ cmd::parse(){
 cmd::parse_tags(){
     local _cmd
 
-    [ -z "$1" ] && util::usage && exit 1
+    [ -z "$1" ] && help::show "tags"
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "add,remove,list,find,help" || util::usage
+    cmd::find "_cmd" "$1" "add,remove,list,find,help" || help::show "tags"
     shift
 
     case "${_cmd}" in
@@ -107,7 +107,6 @@ cmd::parse_tags(){
         list)    tags::list "$@" ;;
         find)    tags::find "$@" ;;
         help)    help::show "tags" ;;
-        *)       util::err "unknown command '${_user_cmd}'. please run 'vm usage' or view the manpage for help" ;;
     esac
 }
 
