@@ -98,6 +98,8 @@ cmd::parse(){
 cmd::parse_switch(){
     local _cmd
 
+    [ -z "$1" ] && help::show "switch"
+
     # try to find a matching command
     cmd::find "_cmd" "$1" "create,list,destroy,add,remove,vlan,nat,address,private,info" || help::show "switch"
     shift
@@ -126,6 +128,8 @@ cmd::parse_switch(){
 cmd::parse_datastore(){
     local _cmd
 
+    [ -z "$1" ] && help::show "datastore"
+
     # try to find a matching command
     cmd::find "_cmd" "$1" "list,add,remove,iso,img" || help::show "datastore"
     shift
@@ -148,6 +152,7 @@ cmd::parse_datastore(){
 cmd::parse_image(){
     local _cmd
 
+    [ -z "$1" ] && help::show "image"
     [ -z "${VM_ZFS}" ] && util::err "\$vm_dir must be a ZFS datastore to use these functions"
 
     # try to find a matching command
