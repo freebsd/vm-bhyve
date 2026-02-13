@@ -80,6 +80,7 @@ Usage:
 
 Examples:
     vm datastore add anotherds \"zfs:anotherpool/datastore\"
+    vm datastore iso isoplace /path/to/iso/datastore
 "
 
 _hs_get_set="
@@ -310,7 +311,6 @@ Usage:
 
 Options:
     -f      Reset without prompting for confirmation
-
 "
 
 #------------------------------------------------------------------------------
