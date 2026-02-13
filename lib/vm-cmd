@@ -127,7 +127,7 @@ cmd::parse_datastore(){
     local _cmd
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "list,add,remove,iso,img" || util::usage
+    cmd::find "_cmd" "$1" "list,add,remove,iso,img" || help::show "datastore"
     shift
 
     case "${_cmd}" in
@@ -151,7 +151,7 @@ cmd::parse_image(){
     [ -z "${VM_ZFS}" ] && util::err "\$vm_dir must be a ZFS datastore to use these functions"
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "list,create,provision,destroy" || util::usage
+    cmd::find "_cmd" "$1" "list,create,provision,destroy" || help::show "image"
     shift
 
     case "${_cmd}" in

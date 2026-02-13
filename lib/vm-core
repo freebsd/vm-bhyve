@@ -16,7 +16,7 @@ core::list(){
         case ${_opt} in
             r) _running_only='true' ;;
             v) VM_OPT_VERBOSE="1" ;;
-            *) util::usage ;;
+            *) help::show "list" ;;
         esac
     done
 
@@ -135,14 +135,14 @@ core::create(){
             n) _network_config=${OPTARG} ;;
             u) _user_data_file=${OPTARG} ;;
 
-            *) util::usage ;;
+            *) help::show "create" ;;
         esac
     done
 
     shift $((OPTIND - 1))
     _name=$1
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "create"
 
     # check guest name
     util::check_name "${_name}" || util::err "invalid virtual machine name - '${_name}'"
@@ -598,7 +598,7 @@ core::install(){
     _name="$1"
     _iso="$2"
 
-    [ -z "${_name}" -o -z "${_iso}" ] && util::usage
+    [ -z "${_name}" -o -z "${_iso}" ] && help::show "install"
 
     # just run start with an iso
     datastore::iso_find "_fulliso" "${_iso}" || util::err "unable to locate iso file - '${_iso}'"
@@ -789,7 +789,7 @@ core::start(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "start"
     : ${vm_delay:=2}
 
     # disable foreground/interactive if we're starting more than one
@@ -938,7 +938,7 @@ core::stop(){
     local _name="$1"
     local _pid _loadpid
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "stop"
 
     while [ -n "${_name}" ]; do
         if [ ! -e "/dev/vmm/${_name}" ]; then
@@ -975,7 +975,7 @@ core::suspend(){
 
     util::check_bhyve_suspend || util::err "unable to suspend the guest"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "suspend"
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -1018,7 +1018,7 @@ core::reset(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "reset"
     [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
 
     if [ -z "${VM_OPT_FORCE}" ]; then
@@ -1040,7 +1040,7 @@ core::poweroff(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "poweroff"
     [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
 
     if [ -z "${VM_OPT_FORCE}" ]; then
@@ -1063,7 +1063,7 @@ core::destroy(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "destroy"
 
     # trying to remove a snapshot?
     echo "${_name}" | grep -qs "@"
@@ -1099,10 +1099,10 @@ core::discard(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "discard"
 
     # core::discard only accepts one target guest
-    [ ! -z "$2" ] && util::usage
+    [ ! -z "$2" ] && help::show "discard"
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -1136,7 +1136,7 @@ core::rename(){
     local _new="$2"
     local _mv_failed
 
-    [ -z "${_old}" -o -z "${_new}" ] && util::usage
+    [ -z "${_old}" -o -z "${_new}" ] && help::show "rename"
     util::check_name "${_new}" || util::err "invalid virtual machine name - '${_name}'"
 
     datastore::get_guest "${_new}" && util::err "directory ${VM_DS_PATH}/${_new} already exists"
@@ -1187,7 +1187,7 @@ core::console(){
     while getopts w _opt ; do
         case $_opt in
             w) _wait_for_vm="1" ;;
-            *) util::usage ;;
+            *) help::show "console" ;;
         esac
     done
 
@@ -1196,7 +1196,7 @@ core::console(){
     _name="$1"
     _port="$2"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "console"
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -1249,7 +1249,7 @@ core::configure(){
     local _name="$1"
     local _target="$2"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "configure"
     [ -z "${EDITOR}" ] && EDITOR="vi"
 
     datastore::get_guest "${_name}" || \
@@ -1269,7 +1269,7 @@ core::configure(){
             $EDITOR "${VM_DS_PATH}/${_name}/${_name}.conf"
             ;;
         *)
-            util::usage
+            help::show "configure"
             ;;
     esac
 }
@@ -1285,7 +1285,7 @@ core::iso(){
     while getopts d:u _opt ; do
         case $_opt in
             d) _ds=${OPTARG} ;;
-            *) util::usage ;;
+            *) help::show "iso" ;;
         esac
     done
 
@@ -1336,7 +1336,7 @@ core::img(){
     while getopts d:u _opt ; do
         case $_opt in
             d) _ds=${OPTARG} ;;
-            *) util::usage ;;
+            *) help::show "img" ;;
         esac
     done
 
