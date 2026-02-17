@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # SPDX-FileCopyrightText: 2016 Matt Churchyard <churchers@gmail.com>
 
+TMUX_SOCKET=/var/run/vm-bhyve.sock
+
 # 'vm list'
 # list virtual machines
 #
@@ -882,6 +884,8 @@ core::__start(){
         return 1
     fi
 
+    _tmux_cmd="$_tmux_cmd -S $TMUX_SOCKET"
+
     if util::check_bhyve_suspend >/dev/null 2>&1 && vm::has_saved_state "${_name}"; then
         echo "  * found saved vm state, resuming..."
     else
@@ -1227,7 +1231,8 @@ core::console(){
         _tmux_cmd=$(which tmux)
 
         if [ -n "${_tmux_cmd}" ]; then
-            _tmux=$("${_tmux_cmd}" ls |grep "^${_name}:")
+            _tmux_cmd="$_tmux_cmd -S $TMUX_SOCKET"
+            _tmux=$(${_tmux_cmd} ls |grep "^${_name}:")
 
             if [ -n "${_tmux}" ]; then
                 ${_tmux_cmd} attach -t ${_console##*/}
