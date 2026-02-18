@@ -177,6 +177,7 @@ VM Management
   rename        Rename a guest
   clone         Clone an existing guest
   destroy       Remove a guest from the host
+  add           Add a new network or a disk to a guest
   configure     Open the editor to modify a guest configuration
   edit          Alias to configure
   image         Manage images created from provisioned guests

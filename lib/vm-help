@@ -51,7 +51,7 @@ _hs_switch="
 Usage:
     vm switch info [name] [...]
     vm switch create [options] <name>
-    vm switch vlan <name> <on|off>
+    vm switch vlan <name> <vlan-id>
     vm switch nat <name> <on|off>
     vm switch address <name> <a.b.c.d/xx|3fff::abcd/xx|none>
     vm switch address <name> <a.b.c.d/xx|3fff::abcd/xx> delete
@@ -176,6 +176,22 @@ Options:
 
 #------------------------------------------------------------------------------
 
+_hs_add="
+Usage:
+    vm add -d <disk|network> -s <size|switch> [-t <zvol|sparse-zvol|file>]
+
+Options:
+    -d <device-type>    Device type: disk|network
+    -s <size|switch>    Size of disk or virtual switch to connect to
+    -t <disk-type>      Disk type: zvol|sparse-zvol|file (default: file)
+
+Examples:
+    vm add -d disk -s 30G -t file
+    vm add -d network -s public
+"
+
+#------------------------------------------------------------------------------
+
 _hs_configure="
 Usage:
     vm configure <name> [meta-data|user-data|network-config]
@@ -221,8 +237,6 @@ Options:
 "
 
 #------------------------------------------------------------------------------
-
-_hs_add=""
 
 #### Start/Stop Operations
 

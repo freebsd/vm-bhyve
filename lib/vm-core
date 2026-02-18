@@ -476,7 +476,7 @@ core::add(){
             d) _device=${OPTARG} ;;
             t) _type=${OPTARG} ;;
             s) _sopt=${OPTARG} ;;
-            *) util::usage ;;
+            *) help::show "add";;
         esac
     done
 
@@ -484,7 +484,7 @@ core::add(){
     _name="$1"
 
     # check guest
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "add"
     datastore::get_guest "${_name}" || "${_name} does not appear to be a valid virtual machine"
 
     case "${_device}" in
@@ -511,7 +511,7 @@ core::add_disk(){
 
     : ${_device:=file}
 
-    [ -z "${_size}" ] && util::usage
+    [ -z "${_size}" ] && help::show "add"
 
     # get the last existing disk
     config::load "${VM_DS_PATH}/${_name}/${_name}.conf"
@@ -564,7 +564,7 @@ core::add_network(){
     local _switch="$2"
     local _num=0 _curr _emulation
 
-    [ -z "${_switch}" ] && util::usage
+    [ -z "${_switch}" ] && help::show "add"
 
     config::load "${VM_DS_PATH}/${_name}/${_name}.conf"
 
