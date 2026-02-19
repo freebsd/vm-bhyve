@@ -1048,7 +1048,7 @@ core::poweroff(){
     fi
 
     # remove saved vm state on forceful poweroff
-    bhyvectl --force-poweroff --vm=${_name} && core::discard -f "${_name}"
+    bhyvectl --force-poweroff --destroy --vm=${_name} && core::discard -f "${_name}"
 }
 
 # 'vm destroy'
