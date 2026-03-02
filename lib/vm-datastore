@@ -310,7 +310,7 @@ datastore::iso(){
     local _name="$1"
     local _path="$2"
 
-    [ -z "${_name}" -o -z "${_path}" ] && util::usage
+    [ -z "${_name}" -o -z "${_path}" ] && help::show "datastore"
     util::check_name "${_name}" || util::err "invalid datastore name - '${_name}'"
 
     # check name not in use
@@ -336,7 +336,7 @@ datastore::img(){
     local _name="$1"
     local _path="$2"
 
-    [ -z "${_name}" -o -z "${_path}" ] && util::usage
+    [ -z "${_name}" -o -z "${_path}" ] && help::show "datastore"
     util::check_name "${_name}" || util::err "invalid datastore name - '${_name}'"
 
     # check name not in use
