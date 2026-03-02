@@ -78,10 +78,12 @@ Usage:
     vm datastore add <name> <spec>
     vm datastore remove <name>
     vm datastore iso <name> <path>
+    vm datastore img <name> <path>
 
 Examples:
     vm datastore add anotherds \"zfs:anotherpool/datastore\"
     vm datastore iso isoplace /path/to/iso/datastore
+    vm datastore img imgplace /path/to/img/datastore
 "
 
 _hs_get_set="
