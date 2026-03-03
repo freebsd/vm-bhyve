@@ -310,7 +310,7 @@ datastore::iso(){
     local _name="$1"
     local _path="$2"
 
-    [ -z "${_name}" -o -z "${_path}" ] && util::usage
+    [ -z "${_name}" -o -z "${_path}" ] && help::show "datastore"
     util::check_name "${_name}" || util::err "invalid datastore name - '${_name}'"
 
     # check name not in use
@@ -336,7 +336,7 @@ datastore::img(){
     local _name="$1"
     local _path="$2"
 
-    [ -z "${_name}" -o -z "${_path}" ] && util::usage
+    [ -z "${_name}" -o -z "${_path}" ] && help::show "datastore"
     util::check_name "${_name}" || util::err "invalid datastore name - '${_name}'"
 
     # check name not in use
@@ -447,14 +447,19 @@ datastore::iso_list(){
     printf "${_format}" "DATASTORE" "FILENAME"
 
     # look for default iso location
-    [ -d "${vm_dir}/.iso" ] && ls -1 "${vm_dir}/.iso" | awk '{printf "'${_format}'","default",$1}'
+    [ -d "${vm_dir}/.iso" ] && \
+        find "${vm_dir}/.iso" -type f -maxdepth 1 -printf "%f\n" | \
+        awk '{printf "'${_format}'","default",$1}'
 
     # look for iso datastores
     for _ds in ${VM_DATASTORE_LIST}; do
         config::core::get "_spec" "path_${_ds}"
         [ "${_spec%%:*}" != "iso" ] && continue
 
-        [ -d "${_spec#*:}" ] && ls -1 ${_spec#*:} | awk '{printf "'${_format}'","'${_ds}'",$1}'
+        [ -d "${_spec#*:}" ] && \
+            ls -1 ${_spec#*:} | \
+            find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
+            awk '{printf "'${_format}'","'${_ds}'",$1}'
     done
 }
 
@@ -466,13 +471,17 @@ datastore::img_list(){
     printf "${_format}" "DATASTORE" "FILENAME"
 
     # look for default img location
-    [ -d "${vm_dir}/.img" ] && ls -1 "${vm_dir}/.img" | awk '{printf "'${_format}'","default",$1}'
+    [ -d "${vm_dir}/.img" ] && \
+        find "${vm_dir}/.img" -type f -maxdepth 1 -printf "%f\n" | \
+        awk '{printf "'${_format}'","default",$1}'
 
     # look for img datastores
     for _ds in ${VM_DATASTORE_LIST}; do
         config::core::get "_spec" "path_${_ds}"
         [ "${_spec%%:*}" != "img" ] && continue
 
-        [ -d "${_spec#*:}" ] && ls -1 ${_spec#*:} | awk '{printf "'${_format}'","'${_ds}'",$1}'
+        [ -d "${_spec#*:}" ] && \
+            find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
+            awk '{printf "'${_format}'","'${_ds}'",$1}'
     done
 }
