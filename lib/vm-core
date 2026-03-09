@@ -1281,9 +1281,12 @@ core::configure(){
 #
 core::iso(){
     local _url _ds="default" _filename
+    local _fetch_opts
 
-    while getopts d:u _opt ; do
+    while getopts 46d:u _opt ; do
         case $_opt in
+            4) _fetch_opts="${_fetch_opts} -4" ;;
+            6) _fetch_opts="${_fetch_opts} -6" ;;
             d) _ds=${OPTARG} ;;
             *) help::show "iso" ;;
         esac
@@ -1294,7 +1297,9 @@ core::iso(){
 
     if [ -n "${_url}" ]; then
         datastore::get_iso "${_ds}" || util::err "unable to locate path for datastore '${_ds}'"
-        fetch -o "${VM_DS_PATH}" "${_url}"
+        # Essentially, -4 and -6 are mutually exclusive, but fetch(1) does not enforce it.
+        # The last one wins, so leaving it to fetch(1).
+        fetch ${_fetch_opts} -o "${VM_DS_PATH}" "${_url}"
         _filename=$(basename "${_url}")
         core::decompress "${VM_DS_PATH}/${_filename}"
     else
@@ -1331,12 +1336,15 @@ core::decompress(){
 #
 core::img(){
     local _url _ds="default" _filename
+    local _fetch_opts
     if ! which qemu-img > /dev/null; then
         util::err "Error: qemu-img is required to work with cloud images! Run 'pkg install qemu-tools'."
     fi
 
-    while getopts d:u _opt ; do
+    while getopts 46d:u _opt ; do
         case $_opt in
+            4) _fetch_opts="${_fetch_opts} -4" ;;
+            6) _fetch_opts="${_fetch_opts} -6" ;;
             d) _ds=${OPTARG} ;;
             *) help::show "img" ;;
         esac
@@ -1348,7 +1356,9 @@ core::img(){
     if [ -n "${_url}" ]; then
         datastore::get_img "${_ds}" || util::err "unable to locate path for datastore '${_ds}'"
         _filename=$(basename "${_url}")
-        fetch -o "${VM_DS_PATH}" "${_url}"
+        # Essentially, -4 and -6 are mutually exclusive, but fetch(1) does not enforce it.
+        # The last one wins, so leaving it to fetch(1).
+        fetch ${_fetch_opts} -o "${VM_DS_PATH}" "${_url}"
         core::decompress "${VM_DS_PATH}/${_filename}"
     else
         datastore::img_list
