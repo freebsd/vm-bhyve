@@ -364,9 +364,11 @@ Options:
 
 _hs_iso="
 Usage:
-    vm iso [-d datastore] [url]
+    vm iso [-46] [-d datastore] [url]
 
 Options:
+    -4      Use IPv4 for downloads
+    -6      Use IPv6 for downloads
     -d      Specify a datastore to store
 "
 
@@ -374,9 +376,11 @@ Options:
 
 _hs_img="
 Usage:
-    vm img [-d datastore] [url]
+    vm img [-46] [-d datastore] [url]
 
 Options:
+    -4      Use IPv4 for downloads
+    -6      Use IPv6 for downloads
     -d      Specify a datastore to store
 "
 
