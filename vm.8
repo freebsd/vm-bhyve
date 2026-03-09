@@ -183,10 +183,12 @@
 .Pp
 .Nm
 .Cm iso
+.Op Fl 46
 .Op Ar -d datastore
 .Op Ar url
 .Nm
 .Cm img
+.Op Fl 46
 .Op Ar -d datastore
 .Op Ar url
 .Pp
@@ -1144,6 +1146,7 @@ This snapshot must exist on both hosts.
 .El
 .It Xo
 .Cm iso
+.Op Fl 46
 .Op Ar -d datastore
 .Op Ar url
 .Xc
@@ -1163,8 +1166,14 @@ The target datasource can be changed by specifying
 .Sy -d datastore
 with
 .Sy url .
+Use the
+.Sy -4
+or
+.Sy -6
+option to specify the IP address family for downloads.
 .It Xo
 .Cm img
+.Op Fl 46
 .Op Ar -d datastore
 .Op Ar url
 .Xc
@@ -1184,6 +1193,11 @@ The target datastore can be changed by specifying
 .Sy -d datastore
 with
 .Sy url .
+Use the
+.Sy -4
+or
+.Sy -6
+option to specify the IP address family for downloads.
 .It Cm image list
 List available images.
 Any virtual machine can be packaged into an image, which can then be used to
