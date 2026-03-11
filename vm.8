@@ -93,6 +93,7 @@
 .Nm
 .Cm list
 .Op Fl rv
+.Op Fl t Ar tag
 .Nm
 .Cm info
 .Op Ar name
@@ -736,6 +737,7 @@ disk images & configuration.
 .It Xo
 .Cm list
 .Op Fl rv
+.Op Fl t Ar tag
 .Xc
 .br
 List all the virtual machines in the
@@ -750,6 +752,12 @@ option displays additional information about each virtual machine.
 If the
 .Ar -r
 option is specified, only running guests are listed.
+.Pp
+If the
+.Ar -t
+option and a
+.Ar tag
+is speficied, only guests with the specified tag are listed.
 .It Cm info Op Ar name Op Ar ...
 Shows detailed information about the specified virtual machine(s).
 If no names are given, information for all virtual machines is displayed.

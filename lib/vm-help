@@ -109,10 +109,11 @@ Usage:
 #
 _hs_list="
 Usage:
-    vm list [-rv]
+    vm list [-rv] [-t <tag>]
 
 Options:
     -r      List running guests only
+    -t      Filter guests by a specified tag
     -v      Verbose mode
 "
 
