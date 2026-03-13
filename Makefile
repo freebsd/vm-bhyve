@@ -20,6 +20,7 @@ MAN=$(PROG).8
 install:
 	$(MKDIR) -p $(BINDIR)
 	$(INSTALL) -m 544 $(PROG) $(BINDIR)/
+	sed -i '' -e 's|/usr/local/lib/vm-bhyve|$(LIBDIR)|g' $(BINDIR)/$(PROG)
 
 	$(MKDIR) -p $(LIBDIR)
 	$(INSTALL) lib/* $(LIBDIR)/
