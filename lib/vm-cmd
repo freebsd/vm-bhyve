@@ -1,36 +1,15 @@
 #!/bin/sh
-#-------------------------------------------------------------------------+
-# Copyright (C) 2016 Matt Churchyard (churchers@gmail.com)
-# All rights reserved
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted providing that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-FileCopyrightText: 2016 Matt Churchyard <churchers@gmail.com>
 
 CMD_VALID_LIST="init,switch,datastore,image,get,set,list,create,destroy,rename,install,start,stop,restart"
 CMD_VALID_LIST="${CMD_VALID_LIST},add,reset,poweroff,startall,stopall,console,iso,img,configure,passthru,_run"
-CMD_VALID_LIST="${CMD_VALID_LIST},info,clone,snapshot,rollback,migrate,version,usage"
+CMD_VALID_LIST="${CMD_VALID_LIST},info,clone,snapshot,rollback,migrate,version,usage,edit"
+CMD_VALID_LIST="${CMD_VALID_LIST},suspend,suspendall,discard,help"
 
 # cmd: vm ...
 #
-# handle simple information commands that don't need any 
+# handle simple information commands that don't need any
 # priviledged access or bhyve support
 #
 # @param string _cmd the command right after 'vm '
@@ -40,9 +19,20 @@ cmd::parse_info(){
 
     cmd::find "_cmd" "$1" "${CMD_VALID_LIST}"
 
+    # "vm <subcommand> -h" command also displays help about any subcommand
+    case "$2" in
+        -h|--help) help::show "${_cmd}" ;;
+    esac
+
     case "${_cmd}" in
         version) util::version && exit ;;
         usage)   util::usage ;;
+        # "vm help <subcommand>" displays help about any subcommand
+        help)
+            [ -z "$2" ] && help::_help
+            help::show "$2"
+	    exit
+	    ;;
     esac
 }
 
@@ -70,20 +60,23 @@ cmd::parse(){
         list)      core::list "$@" ;;
         create)    core::create "$@" ;;
         destroy)   core::destroy "$@" ;;
+        discard)   core::discard "$@" ;;
         rename)    core::rename "$@" ;;
         install)   core::install "$@" ;;
         start)     core::start "$@" ;;
         stop)      core::stop "$@" ;;
         restart)   core::restart "$@" ;;
+        suspend)   core::suspend "$@" ;;
         add)       core::add "$@" ;;
         reset)     core::reset "$@" ;;
         poweroff)  core::poweroff "$@" ;;
         startall)  core::startall ;;
         stopall)   core::stopall ;;
+        suspendall) core::suspendall ;;
         console)   core::console "$@" ;;
         iso)       core::iso "$@" ;;
         img)       core::img "$@" ;;
-        configure) core::configure "$@" ;;
+        configure|edit) core::configure "$@" ;;
         passthru)  core::passthru ;;
         _run)      vm::run "$@" ;;
         info)      info::guest "$@" ;;
@@ -105,8 +98,10 @@ cmd::parse(){
 cmd::parse_switch(){
     local _cmd
 
+    [ -z "$1" ] && help::show "switch"
+
     # try to find a matching command
-    cmd::find "_cmd" "$1" "create,list,destroy,add,remove,vlan,nat,address,private,info" || util::usage
+    cmd::find "_cmd" "$1" "create,list,destroy,add,remove,vlan,nat,address,private,info" || help::show "switch"
     shift
 
     case "${_cmd}" in
@@ -133,8 +128,10 @@ cmd::parse_switch(){
 cmd::parse_datastore(){
     local _cmd
 
+    [ -z "$1" ] && help::show "datastore"
+
     # try to find a matching command
-    cmd::find "_cmd" "$1" "list,add,remove,iso,img" || util::usage
+    cmd::find "_cmd" "$1" "list,add,remove,iso,img" || help::show "datastore"
     shift
 
     case "${_cmd}" in
@@ -155,10 +152,11 @@ cmd::parse_datastore(){
 cmd::parse_image(){
     local _cmd
 
+    [ -z "$1" ] && help::show "image"
     [ -z "${VM_ZFS}" ] && util::err "\$vm_dir must be a ZFS datastore to use these functions"
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "list,create,provision,destroy" || util::usage
+    cmd::find "_cmd" "$1" "list,create,provision,destroy" || help::show "image"
     shift
 
     case "${_cmd}" in

@@ -16,19 +16,29 @@ Some of the main features include:
 * Designed with multiple compute nodes + shared storage in mind (NFS/iSCSI/etc)
 * Multiple datastores
 * VNC graphics & tmux support (1.1+ only. See wiki for instructions)
-* Dependency free**
+* Dependency free[[*](#optional-dependencies)]
 
-** Some additional packages may be required in certain circumstances -
+### Optional dependencies
 
-* `sysutils/grub2-bhyve` is required to run Linux or any other guests that need a Grub bootloader.
+Some additional packages may be required in certain circumstances:
+
+* `sysutils/grub2-bhyve` is required to run guests that need a Grub bootloader
 * `sysutils/bhyve-firmware` is required to run UEFI guests
 * `sysutils/tmux` is needed to use tmux console access instead of cu/nmdm
+* `net-mgmt/gnu-ipcalc` performs stricter CIDR notation vailidation when available
 
+### See the GitHub wiki for more information and examples
 
-##### See the GitHub wiki for more information and examples.
-
-For most users, I recommend using the version in ports (1.1+).
+For most users, I recommend using the version in ports (1.7+).
 Main development happens in the master branch on GitHub and it may contain broken or incomplete features.
+
+### Support Lifecycle
+
+vm-bhyve support aligns with FreeBSD's official support lifecycle.
+
+In other words, the latest vm-bhyve release supports the FreeBSD versions
+that are supported at the time of its release.  See also
+[FreeBSD Release Information](https://www.freebsd.org/releases/).
 
 ## Quick-Start
 
@@ -43,9 +53,9 @@ See the sections below for more in-depth details.
     6. cp /usr/local/share/examples/vm-bhyve/* /mountpoint/for/pool/vm/.templates/
     7. vm switch create public
     8. vm switch add public em0
-    9. vm iso https://download.freebsd.org/ftp/releases/ISO-IMAGES/14.2/FreeBSD-14.2-RELEASE-amd64-bootonly.iso
+    9. vm iso https://download.freebsd.org/ftp/releases/ISO-IMAGES/14.3/FreeBSD-14.3-RELEASE-amd64-bootonly.iso
     10. vm create myguest
-    11. vm install [-f] myguest FreeBSD-14.2-RELEASE-amd64-bootonly.iso
+    11. vm install [-f] myguest FreeBSD-14.3-RELEASE-amd64-bootonly.iso
     12. vm console myguest
 
 - [ ] Line 1
@@ -57,7 +67,7 @@ If you're not using ZFS, just create a normal directory.
 
 - [ ] Lines 3-4
 Enable vm-bhyve in /etc/rc.conf and set the dataset to use.
-If not using ZFS, just set `$vm_dir="/my/vm/folder"`.
+If not using ZFS, just set `vm_dir="/my/vm/folder"`.
 
 - [ ] Line 5
 Run the `vm init` command to create the required directories under $vm_dir and load kernel modules.
@@ -74,7 +84,7 @@ Download a copy of FreeBSD from the ftp site.
 
 - [ ] Lines 10-12
 Create a new guest using the `default.conf` template, run the installer and
-then connect to its console. At this point proceed through the installation 
+then connect to its console. At this point proceed through the installation
 as normal. By specifying the `-f` option before the install command, the guest
 will run directly on your terminal so the `console` command is not required. (Bear
 in mind that you won't get back to your terminal until the guest is fully shutdown)
@@ -87,9 +97,9 @@ To install, just run the following command inside the vm-bhyve source directory
 
     # make install
 
-If you want to run guests other than FreeBSD, you will need the grub2-bhyve package;
+If you want to run guests other than FreeBSD, you will need the UEFI firmware;
 
-    # pkg install grub2-bhyve
+    # pkg install bhyve-firmware
 
 ## Initial configuration
 
@@ -144,7 +154,7 @@ the default template:
 
 You will notice that each template is set to create one network interface. You can easily add more network
 interfaces by duplicating the two network configuration options and incrementing the number. In general you
-will not want to change the type from 'virtio-net', but you will notice the first interface is set to connect 
+will not want to change the type from 'virtio-net', but you will notice the first interface is set to connect
 to a switch called 'public'. See the next section for details on how to configure virtual switches.
 
 I recommend reading the man page or `sample-templates/config.sample` for a full list of supported template
@@ -187,17 +197,17 @@ example specifies the templatename.conf template, and tells vm-bhyve to create a
 
 You will need an ISO to install the guest with, so download one using the iso command:
 
-    # vm iso https://download.freebsd.org/ftp/releases/ISO-IMAGES/14.2/FreeBSD-14.2-RELEASE-amd64-disc1.iso
+    # vm iso https://download.freebsd.org/ftp/releases/ISO-IMAGES/14.3/FreeBSD-14.3-RELEASE-amd64-disc1.iso
 
 To start a guest install, run the following command. vm-bhyve will run the machine in the background,
 so use the console command to connect to it and finish installation.
 
-    # vm install testvm FreeBSD-14.2-RELEASE-amd64-disc1.iso
+    # vm install testvm FreeBSD-14.3-RELEASE-amd64-disc1.iso
     # vm console testvm
 
 You can also specify the foreground option to run the guest directly on your terminal:
 
-    # vm install -f testvm FreeBSD-14.2-RELEASE-amd64-disc1.iso
+    # vm install -f testvm FreeBSD-14.3-RELEASE-amd64-disc1.iso
 
 Once installation has finished, you can reboot the guest from inside the console and it will boot up into
 the new OS (assuming installation was successful). Further reboots will work as expected and
@@ -251,7 +261,7 @@ See the man page for a full description of all available commands.
 
 ## Using cloud images
 
-You can use cloud images to create virtual machines. The `vm img` command will download the image to datastore and 
+You can use cloud images to create virtual machines. The `vm img` command will download the image to datastore and
 uncompress it if needed (.xz, .tar.gz, and .gz files are supported). The image should be in RAW or QCOW2 format.
 To use this feature you'll need install qemu-tools package:
 
@@ -259,8 +269,8 @@ To use this feature you'll need install qemu-tools package:
 
 To launch FreeBSD using official cloud image:
 
-    # vm img https://download.freebsd.org/ftp/releases/VM-IMAGES/14.2-RELEASE/amd64/Latest/FreeBSD-14.2-RELEASE-amd64.raw.xz
-    # vm create -t freebsd-zvol -i FreeBSD-14.2-RELEASE-amd64.raw freebsd-cloud
+    # vm img https://download.freebsd.org/ftp/releases/VM-IMAGES/14.3-RELEASE/amd64/Latest/FreeBSD-14.3-RELEASE-amd64.raw.xz
+    # vm create -t freebsd-zvol -i FreeBSD-14.3-RELEASE-amd64.raw freebsd-cloud
     # vm start freebsd-cloud
 
 To list downloaded images:
@@ -270,7 +280,7 @@ To list downloaded images:
     default             CentOS-7-x86_64-GenericCloud-20180930_02.raw
     default             debian-9-openstack-amd64.qcow2
     default             Fedora-AtomicHost-28-1.1.x86_64.raw
-    default             FreeBSD-14.2-RELEASE-amd64.raw
+    default             FreeBSD-14.3-RELEASE-amd64.raw
     default             xenial-server-cloudimg-amd64-uefi1.img
 
 ## Using cloud-init
@@ -278,8 +288,10 @@ To list downloaded images:
 vm-bhyve has basic support for providing cloud-init configuration to the guest. You can enable it with `-C` option
 to `vm create` command. You can also pass public SSH key to be injected into the guest with option `-k <file>`.
 The public key file can contain multiple public SSH keys, one per line, in the `authorized_keys` format.
-Also `vm create` has option `-n "interface=;ip=;gateway=;nameservers=;searchdomains=;hostname="` that allows to set network parameters.
-Example netconfig param: "interface=vtnet0;ip=10.0.0.2/24;gateway=10.0.0.1;nameservers=1.1.1.1,8.8.8.8;searchdomains=example.com,example.org" .
+
+Also `vm create` has option `-n "interface=;ip=;gateway4=;gateway6=;nameservers=;searchdomains=;hostname="` that allows to set network parameters.
+Example of netconfig parameters: `interface=vtnet0;ip=10.0.0.2/24,2001:db8::1234/64;gateway4=10.0.0.1;gateway6=2001:db8::1;nameservers=1.1.1.1,8.8.8.8,2001:db8::5353;searchdomains=example.com,example.org` .
+`ip` may contain one IPv4 address and one IPv6 with `,` as the delimiter.
 
 Example:
 
@@ -295,6 +307,15 @@ Example:
     Are you sure you want to continue connecting (yes/no)? yes
     Warning: Permanently added '192.168.0.91' (ECDSA) to the list of known hosts.
     Welcome to Ubuntu 16.04.5 LTS (GNU/Linux 4.4.0-141-generic x86_64)
+
+### Editing cloud-init configuration
+
+To edit generated cloud-init configuration files, such as meta-data, network-config and user-data, specify the configuration file for the `vm configure` command.
+Please note that cloud-init typically runs only on the first boot. Any changes made after the first boot does not take effect.
+
+```
+# vm configure <name> user-data
+```
 
 ## Adding custom disks
 

@@ -1,4 +1,7 @@
-.Dd November 16, 2016
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" SPDX-FileCopyrightText: 2016 Matt Churchyard <churchers@gmail.com>
+.\" SPDX-FileCopyrightText: 2025 Koichiro Iwao (metalefty) <meta@FreeBSD.org>
+.Dd September 1, 2025
 .Dt VM-BHYVE 8
 .Os
 .Sh NAME
@@ -44,7 +47,8 @@
 .Ar name on|off
 .Nm
 .Cm switch address
-.Ar name a.b.c.d/xx|none
+.Ar name a.b.c.d/xx|3fff::abcd/xx|none
+.Op delete
 .Nm
 .Cm switch private
 .Ar name on|off
@@ -78,11 +82,11 @@
 .Op Fl c Ar vCPUs
 .Op Fl m Ar memory
 .Op Fl i Ar vm-image
-.Op Fl C k Ar pubkeys
+.Op Fl C k Ar pubkey-file
 .Op Fl n Ar netconfig
+.Op Fl u Ar user-data-file
 .Ar name
 .Nm
-.Cm
 .Cm destroy
 .Op Fl f
 .Ar name
@@ -110,7 +114,16 @@
 .Cm restart
 .Ar name
 .Nm
+.Cm suspend
+.Ar name
+.Ar ...
+.Nm
+.Cm discard
+.Op Fl f
+.Ar name
+.Nm
 .Cm console
+.Op Fl w
 .Ar name
 .Op Ar com1|com2
 .Nm
@@ -137,8 +150,16 @@
 .Cm stopall
 .Op Fl f
 .Nm
+.Cm suspendall
+.Op Fl f
+.Nm
 .Cm configure
 .Ar name
+.Op Ar meta-data|network-config|user-data
+.Nm
+.Cm edit
+.Ar name
+.Op Ar meta-data|network-config|user-data
 .Nm
 .Cm passthru
 .Nm
@@ -163,10 +184,12 @@
 .Pp
 .Nm
 .Cm iso
+.Op Fl 46
 .Op Ar -d datastore
 .Op Ar url
 .Nm
 .Cm img
+.Op Fl 46
 .Op Ar -d datastore
 .Op Ar url
 .Pp
@@ -343,8 +366,8 @@ If you are running
 .Fx 10
 , there is no VGA console in
 .Xr bhyve 8 ,
-and so an unattended installation ISO is required which allows Windows to install and
-boot without any user interaction.
+and so an unattended installation ISO is required which allows Windows to
+install and boot without any user interaction.
 Instructions for creating a suitable ISO can be found at the URL below.
 .Pp
 On
@@ -415,8 +438,8 @@ These are settings that affect the functionality of vm-bhyve, such as
 configuring the type of serial console to use.
 The keyword
 .Sy all
-can be used to retrieve all user configurable settings, or you can specify one or
-more settings by name, separated by a space.
+can be used to retrieve all user configurable settings, or you can specify one
+or more settings by name, separated by a space.
 .It Cm set Ar setting=value
 Sets the value of a global configuration setting.
 Multiple settings can be changed at the same time by seperating the
@@ -434,9 +457,9 @@ If the virtual switches are loaded, it also tries to display the
 .Xr bridge 4
 interface that has been assigned to each one.
 .It Cm switch info Op Ar name Op Ar ...
-This subcommand shows detailed information about the specified virtual switch(es).
-If no switch names are provided, information is output for all configured
-switches.
+This subcommand shows detailed information about the specified virtual
+switch(es).  If no switch names are provided, information is output for all
+configured switches.
 Information displayed includes the following:
 .Pp
 o Basic switch settings
@@ -548,16 +571,21 @@ removed from the bridge, reconfigured, then re-added.
 To remove the VLAN configuration from a virtual switch, specify a
 .Ar vlan-id
 of 0.
-.It Cm switch address Ar name Ar a.b.c.d/xx|none
-Configure an IP address for the specified virtual switch. The address should
-be specified in CIDR notation. To remove an address, specify
+.It Cm switch address Ar name Ar a.b.c.d/xx|3fff::abcd/xx|none Op delete
+Configure IP addresses for the specified virtual switch.
+The address should be specified in IPv4 or IPv6 CIDR notation.
+To remove all IP addresses from the switch, specify
 .Pa none
 in place of the address.
+To remove only the specified IP address, append the keyword
+.Pa delete .
 .Pp
-If NAT funtionality is required, please configure an address on the switch to
-become the gateway address for guests. Source NAT rules can then be created
-using your choice of firewall or NAT daemon. If DHCP is desired, we recommend
-using a manual switch and configuring this by hand.
+If NAT functionality is required, please configure an address on the switch to
+become the gateway address for guests.
+Source NAT rules can then be created using your choice of firewall or NAT
+daemon.
+If DHCP is desired, we recommend using a manual switch and configuring this by
+hand.
 .It Cm switch private Ar name Ar on|off
 Enable of disable private mode for a virtual switch.
 In private mode, guests will only be able to communicate with the physical
@@ -623,11 +651,23 @@ network share) where you may want to store iso images.
 .Op Fl d Ar datastore
 .Op Fl t Ar template
 .Op Fl s Ar size
+.Op Fl c Ar vCPUs
+.Op Fl m Ar memory
+.br
+.Op Fl i Ar vm-image
+.Op Fl C
+.Op Fl k Ar pubkey-file
+.Op Fl u Ar user-data-file
+.br
+.Op Fl n Ar netconfig
 .Ar name
+.sp
 .Xc
 Create a new virtual machine.
 .Pp
-Unless specified, the
+If no arguments other than
+.Ar name
+are specified, the
 .Pa default.conf
 template will be used and a 20GB virtual disk image is created.
 This subcommand will create the virtual machine directory
@@ -650,6 +690,31 @@ suffix should not be included.
 .It Fl s Ar size
 The size of disk image to create in bytes.
 Unless specified, the guest image will be a sparse file 20GB in size.
+.It Fl c Ar vCPUs
+Override the number of vCPUs allocated to the guest as specified in the
+template.
+.It Fl c Ar memory
+Override the amount of memory allocated to the guest as specified in the
+template.
+.It Fl i Ar vm-image
+Specify a VM image using the filename stored in the
+.Pa $vm_dir/.img
+directory.
+.It Fl C
+Enable cloud-init support for this guest.
+.It Fl k Ar pubkey-file
+Specify a file containing SSH public keys to inject via cloud-init.
+Requires
+.Fl C .
+.It Fl u Ar user-data-file
+Specify a cloud-init user-data file to use instead of generating a default one.
+This allows passing a complete cloud-config file for advanced provisioning.
+Requires
+.Fl C .
+.It Fl n Ar netconfig
+Specify network configuration for cloud-init.
+Requires
+.Fl C .
 .El
 .It Cm destroy Ar name
 Removes the specified virtual machine from the system, deleting all associated
@@ -663,7 +728,8 @@ List all the virtual machines in the
 .Pa $vm_dir
 directory.
 This will show the basic configuration for each virtual machine, and whether
-they are currently running. Using the
+they are currently running.
+Using the
 .Ar -v
 option displays additional information about each virtual machine.
 .Pp
@@ -681,7 +747,7 @@ If the guest is running, the output also shows the amount of host memory
 currently in use, and additional network details including bytes sent/received
 for each virtual interface.
 .It Xo
-.Cm install 
+.Cm install
 .Op Fl fi
 .Ar name Ar iso
 .Xc
@@ -689,7 +755,8 @@ Start a guest installation for the named virtual machine, using the specified
 ISO file or install disk image.
 The
 .Ar iso
-argument should be the filename of an ISO or image file already downloaded into the
+argument should be the filename of an ISO or image file already downloaded into
+the
 .Pa $vm_dir/.iso
 directory (or any media datastore), a full path, or a file in the current
 directory.
@@ -715,7 +782,7 @@ option is specified, the guest will be started in the foreground on stdio.
 The
 .Ar -i
 option starts the guest in interactive mode.
-This requires tmux, and the global
+If the global
 .Sy console
 setting must be set likewise.
 In interactive mode the guest is started on a foreground tmux session, but this
@@ -741,14 +808,23 @@ interface, based on the virtual switch specified in the guest configuration.
 If the
 .Ar -f
 option is specified, the guest will be started in the foreground on stdio.
+.Pp
 The
 .Ar -i
 option starts the guest in interactive mode.
-This requires tmux, and the global
+If the global
 .Sy console
-setting must be set likewise.
-In interactive mode the guest is started on a foreground
-tmux session, but this can be detached using the standard tmux commands.
+setting is set to tmux, the guest is started on a foreground tmux session,
+but this can be detached using the standard tmux commands.
+Otherwise, the guest is started in the background, and
+.Xr cu 1
+is launched to connect to the console.
+.Pp
+Both the
+.Ar -f
+option and
+.Ar -i
+option are ignored when attempting to start more than one VM.
 .It Cm stop Ar name Ar ...
 Stop a named virtual machine.
 All
@@ -757,20 +833,59 @@ and
 .Xr nmdm 4
 devices will be automatically cleaned up once the guest has exited.
 .Pp
-If a guest is stuck in the bootloader stage, you are given the option to forcibly stop it.
+If a guest is stuck in the bootloader stage, you are given the option to
+forcibly stop it.
 .Pp
 Multiple guests can be specified to this command at the same time.
 Each one will be sent a poweroff event.
 .It Cm restart Ar name
-Attempt to restart the specified guest. This causes a shutdown event to be sent to the
-guest, however, vm-bhyve will restart the guest rather than stopping completely.
+Attempt to restart the specified guest.
+This causes a shutdown event to be sent to the guest, however, vm-bhyve will
+restart the guest rather than stopping completely.
 .Pp
-A benfit of using this function is that vm-bhyve will not destroy and recreate network devices like
-it would when using
+A benefit of using this function is that vm-bhyve will not destroy and recreate
+network devices like it would when using
 .Sy stop/start .
-Note that guest configuration is not re-loaded, so all guest settings will be as they were
-when the guest was originally started.
-.It Cm console Ar name Op Ar com1|com2
+Note that guest configuration is not re-loaded, so all guest settings will be as
+they were when the guest was originally started.
+.It Xo
+.Cm suspend Ar name Ar ...
+.Xc
+Stop the named virtual machine(s) while retaining their state.
+The memory contents of the virtual machine(s) are saved in the datastore.
+When resumed, the operating systems and applications are restored to the exact
+state they were in before suspension.
+.Pp
+To resume a suspended virtual machine, use the
+.Em start
+subcommand.
+It will automatically detect whether the virtual machine is suspended and
+resume it.
+.Pp
+This feature is still experimental as of September 2025 and requires the
+.Fx FreeBSD
+kernel and userland to be rebuilt with
+.Dv BHYVE_SNAPSHOT
+option.
+.It Xo
+.Cm discard
+.Op Fl f
+.Ar name
+.Xc
+Discard the saved state files of the virtual machine.
+This operation is equivalent to a forced power-off from the guest, and any
+unsaved files may be lost.
+.Pp
+If the
+.Ar -f
+option is specified, the state files will be removed without prompting for
+confirmation.
+.It Xo
+.Cm console
+.Op Fl w
+.Ar name
+.Op Ar com1|com2
+.Xc
 Connect to the console of the named virtual machine.
 Without network access, this is the primary way of connecting to the guest once
 it is running.
@@ -784,9 +899,14 @@ This looks for the
 device associated with the virtual machine, and connects to it with
 .Xr cu 1 .
 Use ~+Ctrl-D to exit the console and return to the host.
+.Pp
+If the
+.Ar -w
+option is specified, wait until the virtual machine starts before connecting
+to the console.
 .It Cm rename Ar name Ar new-name
 Renames the specified virtual machine.
-The guest must be stopped to use this function.
+The guest must be stopped or suspended to use this function.
 .It Xo
 .Cm add
 .Op Fl d Ar device
@@ -859,25 +979,46 @@ Too small a delay can cause problems, as each guest doesn't have enough time to
 claim a null modem device before the next guest starts.
 Increasing this value can be useful if you have disk-intensive guests and want
 to give each guest a chance to fully boot before the next starts.
-.It Cm stopall
+.It Xo
+.Cm stopall
+.Op Fl f
+.Xc
 Stop all running virtual machines.
 This sends a stop command to all
 .Xr bhyve 8
-instances, regardless of whether they were starting using
-.Nm
-or not.
-.It Cm configure Ar name
+instances, regardless of whether they were starting using or not.
+.Pp
+If the
+.Ar -f
+option is specified, all instances are stopped in parallel.
+.It Xo
+.Cm suspendall
+.Op Fl f
+.Xc
+Suspend all running machines.
+Unlike stopall, this sends a suspend command to the instances started
+by vm-bhyve.
+.Pp
+If the
+.Ar -f
+option is specified, all instances are suspended in parallel.
+.It Cm configure Ar name Op Ar meta-data|network-config|user-data
 The
 .Cm configure
 subcommand simply opens the virtual machine configuration file in your default
 editor, allowing you to easily make changes.
 Please note, changes do not take effect until the virtual machine is fully
 shutdown and restarted.
+.Pp
+If a second argument is given, it opens the specified cloud-init configuration
+file in the default editor.
+.It Cm edit Ar name Op Ar meta-data|network-config|user-data
+An alias to the configure subcommand.
 .It Cm passthru
 The
 .Cm passthru
-subcommand lists all PCI devices in the system, the device ID required for bhyve,
-and whether the device is currently ready to be used by a guest.
+subcommand lists all PCI devices in the system, the device ID required for
+bhyve, and whether the device is currently ready to be used by a guest.
 In order to make a device ready, it needs to be reserved on boot by adding the
 device ID to the
 .Sy pptdevs
@@ -956,18 +1097,21 @@ The guest must always be stopped to use this command.
 .Op Fl d Ar datastore
 .Ar guest host
 .Xc
-The migrate subcommand allows transferring a guest from one host to another. Note that
-currently this involves shutting down the guest, and optionally restarting it once
-migration is complete.
+The migrate subcommand allows transferring a guest from one host to another.
+Note that currently this involves shutting down the guest, and optionally
+restarting it once migration is complete.
 .Pp
-The migration process uses ssh, and works best if key-based ssh is enabled between
-your hosts without the requirement of a password. Transfer is still possible using a password,
-but you will be prompted for this several times during the transfer process.
+The migration process uses ssh, and works best if key-based ssh is enabled
+between your hosts without the requirement of a password.
+Transfer is still possible using a password, but you will be prompted for this
+several times during the transfer process.
 .Pp
-Firstly a full snapshot of the guest is sent while the guest is still running. Optionally, an intermediate
-incremental snapshot can then be sent to bring the remote guest up to date if it is expected that the full
-send may take a long time, or that a large amount of data may change during this time. Once the remote end
-is reasonably up to date, the guest is powered off so a final incremental snapshot can be sent.
+Firstly a full snapshot of the guest is sent while the guest is still running.
+Optionally, an intermediate incremental snapshot can then be sent to bring the
+remote guest up to date if it is expected that the full send may take a long
+time, or that a large amount of data may change during this time.
+Once the remote end is reasonably up to date, the guest is powered off so a
+final incremental snapshot can be sent.
 .Bl -tag -width 12n
 .It Fl r Ar name
 Allows the remote guest to be given a different name to the source.
@@ -976,28 +1120,37 @@ Specify the datastore to store the guest on the destination host.
 .It Fl s
 Start the guest on the remote host once migration is complete.
 .It Fl 1
-Run only the first stage of migration. This will take a full snapshot of the local guest and send it to
-the destination host.
+Run only the first stage of migration.
+This will take a full snapshot of the local guest and send it to the destination
+host.
 .It Fl 2
-Run only the second stage. This will second an incremental snapshot and then complete the migration.
+Run only the second stage.
+This will second an incremental snapshot and then complete the migration.
 This requires the
 .Fl i
 parameter to specify the source snapshot.
 .It Fl t
-Triple snapshot mode. This will send both a full snapshot, and one incremental, before shutting the guest down
-and doing a final incremental send. This may be useful for large or busy guests where there could be a large number
-of chages during the initial full send. The idea is that the first incremental send will bring the remote guest nearly 
-up to date, sending changes that have occured during the lengthy inital full send. This should reduce the size of the
-final incremental send, minimising the amount of time the guest is powered off.
+Triple snapshot mode.
+This will send both a full snapshot, and one incremental,
+before shutting the guest down and doing a final incremental send.
+This may be useful for large or busy guests where there could be a large number
+of changes during the initial full send.
+The idea is that the first incremental send will bring the remote guest nearly
+up to date, sending changes that have occurred during the lengthy initial full
+send.
+This should reduce the size of the final incremental send, minimising the amount
+of time the guest is powered off.
 .It Fl x
 Destroy the local guest once the migration is complete.
 .It Fl i Ar snapshot
-When running the second stage of migration, this parameter is used to specify the name of the snapshot
-to base the incremental send on. This snapshot must exist on both hosts.
+When running the second stage of migration, this parameter is used to specify
+the name of the snapshot to base the incremental send on.
+This snapshot must exist on both hosts.
 .El
-.It Xo 
-.Cm iso 
-.Op Ar -d datastore 
+.It Xo
+.Cm iso
+.Op Fl 46
+.Op Ar -d datastore
 .Op Ar url
 .Xc
 List all the ISO files currently stored in the
@@ -1008,13 +1161,22 @@ the ISO filename.
 .Pp
 If a
 .Sy url
-is specified, instead of listing ISO files, it attempts to download the given file using
+is specified, instead of listing ISO files, it attempts to download the given
+file using
 .Xr fetch 1
-to the default datastore. The target datasource can be changed by specifying
-.Sy -d datastore 
+to the default datastore.
+The target datasource can be changed by specifying
+.Sy -d datastore
 with
 .Sy url .
+Use the
+.Sy -4
+or
+.Sy -6
+option to specify the IP address family for downloads.
+.It Xo
 .Cm img
+.Op Fl 46
 .Op Ar -d datastore
 .Op Ar url
 .Xc
@@ -1024,15 +1186,21 @@ directory.
 This is often useful during guest installation, allowing you to copy and paste
 the image filename.
 .Pp
-If a 
+If a
 .Sy url
-is specified, instead of listing the image files, it attempts to download the given file
-using
+is specified, instead of listing the image files, it attempts to download the
+given file using
 .Xr fetch 1
-to the default datastore. The target datastore can be changed by specifying
+to the default datastore.
+The target datastore can be changed by specifying
 .Sy -d datastore
 with
 .Sy url .
+Use the
+.Sy -4
+or
+.Sy -6
+option to specify the IP address family for downloads.
 .It Cm image list
 List available images.
 Any virtual machine can be packaged into an image, which can then be used to
@@ -1041,9 +1209,9 @@ All images have a globally unique ID (UUID) which is used to identify them.
 The list subcommand shows the UUID, the original machine name, the date it was
 created and a short description of the image.
 .Pp
-Please note that these subcommands rely on using ZFS features to package/unpackage
-the images, and as such are only available when using a ZFS dataset as the
-storage location.
+Please note that these subcommands rely on using ZFS features to
+package/unpackage the images, and as such are only available when using a ZFS
+dataset as the storage location.
 .It Xo
 .Cm image create
 .Op Fl d Ar description
@@ -1118,12 +1286,14 @@ The valid options are
 or
 .Sy uefi-custom .
 .It uefi_vars
-Setting this option to a true value allows the persistent storage of UEFI variables.
-This may be required for some guests that install boot firmware to a non-standard location
-and rely on UEFI variables to locate it. The version of
+Setting this option to a true value allows the persistent storage of UEFI
+variables.
+This may be required for some guests that install boot firmware to
+a non-standard location and rely on UEFI variables to locate it.
+The version of
 .Sy uefi-firmware
-installed must provide the template data file, and support also needs to be present
-in
+installed must provide the template data file, and support also needs to be
+present in
 .Sy bhyve
 .It bhyveload_loader
 This option allows a custom path to be used for the loader inside the guest.
@@ -1148,13 +1318,14 @@ time to connect to the console.
 If access to the grub console is not required, it can also be reduced to speed
 up overall boot.
 .It cpu_sockets
-Specify the number of CPU sockets that should be exposed to the guest. The product
-of
+Specify the number of CPU sockets that should be exposed to the guest.
+The product of
 .Sy sockets * cores * threads
-should equal the number of cpus that has been configured. The ability to control
-CPU topology on a per-guest basis requires
+should equal the number of cpus that has been configured.
+The ability to control CPU topology on a per-guest basis requires
 .Fx
-12 or newer. On older systems, there are
+12 or newer.
+On older systems, there are
 .Sy vmm
 sysctl variables available to configure these settings globally.
 .It cpu_cores
@@ -1169,7 +1340,7 @@ and
 .Sy G
 suffixes.
 .It wired_memory
-Set this to yes in order to have the requested amount of memory wired to the 
+Set this to yes in order to have the requested amount of memory wired to the
 guest.
 .It hostbridge
 This option allows you to specify the type of hostbridge used for the guest
@@ -1185,6 +1356,12 @@ There are also some special cases where you may require no hostbridge at all,
 which can be achieved using the
 .Sy none
 value.
+.It fwcfg
+This option allows you to specify the fw_cfg interface.
+The valid options are
+.Sy bhyve ,
+or
+.Sy qemu .
 .It comports
 This option allows you to specify which com ports to create for the guest.
 The default is to create a single
@@ -1302,8 +1479,8 @@ To use a disk image that is stored anywhere else, you can specify the full path
 in this option, and configure the device as
 .Sy custom .
 .Pp
-To use an established iscsi device, specify a target 'session[/lun]' 
-(default /0) which matches a unique session from the 
+To use an established iscsi device, specify a target 'session[/lun]'
+(default /0) which matches a unique session from the
 .Pf ' Xr iscsictl 8
 -L' command output, and configure the device as
 .Sy iscsi .
@@ -1315,17 +1492,18 @@ and a sparse file, located in the guest directory, will be used as the disk
 image.
 Other options include:
 .Sy zvol
-or 
+or
 .Sy sparse-zvol
 (which will use a ZVOL as the disk image, created directly under the guest
 dataset),
-.Sy custom , 
-and 
+.Sy custom ,
+.Sy 9p ,
+and
 .Sy iscsi .
 .Pp
 When using
 .Sy custom ,
-the 
+the
 .Pa diskX_name
 parameter must be set to the full path to the image file or device.
 .Pp
@@ -1452,6 +1630,19 @@ same sequence as the original device.
 Please see
 .Lk https://wiki.freebsd.org/bhyve/pci_passthru
 for more details on how this works.
+.It Cm passthruX_options
+Specify options for a passthru device backend such as
+.Sy rom
+and
+.Sy bootindex .
+.Pp
+For example, to use a ROM file with the first passthru device:
+.Pp
+passthru0_options="rom=i915_vbt"
+.Pp
+Please see the
+.Xr bhyve 8
+man page for more details on passthru-device-options.
 .It virt_random
 Set this option to
 .Sy yes
@@ -1507,7 +1698,8 @@ To force the console to wait on each boot, the
 .Sy yes
 setting should be used.
 .It graphics_vga
-This configures how the graphics card is exposed to the guest. Valid options are
+This configures how the graphics card is exposed to the guest.
+Valid options are
 .Sy io
 (default),
 .Sy on
@@ -1525,24 +1717,28 @@ this mouse may not supported by older guests.
 .It sound
 Set this option to
 .Sy yes
-in order to provide HD Audio Emulation to the guest. Please see 
-.Sy bhyve(8) 
+in order to provide HD Audio Emulation to the guest.
+Please see
+.Sy bhyve(8)
 for details.
 .It sound_play
-Set this to the desired audio output device of the host to the guest. Defaults to
+Set this to the desired audio output device of the host to the guest.
+Defaults to
 .Sy '/dev/dsp0'
 .It sound_rec
-Set this to the desired audio input device of the host to the guest. If empty
-no audio input device is configured. Defaults to
+Set this to the desired audio input device of the host to the guest.
+If empty no audio input device is configured.
+Defaults to
 .Sy '' (empty)
 .It virt_consoleX
-Allows the creation of up to 16 virtio-console devices in the guest. The value
-to this option can be
+Allows the creation of up to 16 virtio-console devices in the guest.
+The value to this option can be
 .Sy yes|on|1
-to create a numbered port. This is the only method supported by some guests.
+to create a numbered port.
+This is the only method supported by some guests.
 .Pp
-If any other value is provided, this will be used as the name of the port. The
-name
+If any other value is provided, this will be used as the name of the port.
+The name
 .Sy org.freenas.bhyve-agent
 can be useful, as it ties in with utilities written for the FreeNAS
 bhyve-agent interface.
@@ -1573,14 +1769,16 @@ compression off.
 .Pp
 zfs_zvol_opts="volblocksize=128k compress=off"
 .It prestart
-Allows you to specify a script or executable that will run before the guest starts,
-including on reboot. This is provided the guest name, and ZFS dataset (if applicable) as arguments.
+Allows you to specify a script or executable that will run before the guest
+starts, including on reboot.
+This is provided the guest name, and ZFS dataset (if applicable) as arguments.
 We also change directory to the guest path before running the script.
 .Pp
-This can be specified as a full path, or just a script filename. In the latter case we
-look in the guest directory for the script.
+This can be specified as a full path, or just a script filename.
+In the latter case we look in the guest directory for the script.
 .Pp
-Note that although the guest is technically stopped when this process runs, calls to
+Note that although the guest is technically stopped when this process runs,
+calls to
 .Nm
 will still consider the guest locked.
 .It priority
@@ -1645,3 +1843,4 @@ Please report all bugs/issues/feature requests to the GitHub project at
 .\" ============ AUTHOR =============
 .Sh AUTHORS
 .An Matt Churchyard Aq Mt churchers@gmail.com
+.An Koichiro Iwao Aq Mt meta@FreeBSD.org

@@ -1,0 +1,14 @@
+task:
+  name: Lint manpages
+  matrix:
+    freebsd_instance:
+      image_family: freebsd-14-3
+
+  prepare_script:
+    - pkg install -y tmux
+    # workaround: mandoc convers only base system
+    - cp /usr/local/share/man/man1/tmux.1.gz /usr/share/man/man1/
+    - makewhatis /usr/share/man
+
+  script:
+    - mandoc -Tlint ./vm.8

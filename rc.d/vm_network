@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# PROVIDE: vm_network
+# REQUIRE: bridge
+# BEFORE: dnsmasq ipfw pf
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+: ${vm_enable="NO"}
+
+name=vm_network
+desc="Setup switches for vm-bhyve"
+rcvar=vm_enable
+
+load_rc_config $name
+
+command="/usr/local/sbin/vm"
+start_cmd="${name}_start"
+
+vm_network_start()
+{
+    env rc_force="$rc_force" ${command} init
+}
+
+run_rc_command "$1"

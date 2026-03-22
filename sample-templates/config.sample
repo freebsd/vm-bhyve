@@ -385,6 +385,15 @@ graphics_wait="auto"
 #
 graphics_vga="io"
 
+# vnc_password
+# Password to connect the graphical console of the guest.
+# Please note this type of authentication is cryptographically weak
+# and is not intended for use on untrusted networks. Connecting to the
+# graphical console over an encrypted channel, such as via SSH port
+# forwarding, is recommended.
+#
+vnc_password="P@s5w0rd"
+
 # xhci_mouse
 # When graphics are enabled, a PS2 mouse is created by default. This
 # doesn't track very well, and can be replaced with an XHCI mouse

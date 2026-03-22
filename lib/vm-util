@@ -1,28 +1,6 @@
 #!/bin/sh
-#-------------------------------------------------------------------------+
-# Copyright (C) 2016 Matt Churchyard (churchers@gmail.com)
-# All rights reserved
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted providing that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-FileCopyrightText: 2016 Matt Churchyard <churchers@gmail.com>
 
 # make sure we have the right environment
 #
@@ -64,7 +42,7 @@ util::load_module(){
 # is a valid way to check vmm is working, even though it seems reasonable.
 # the vm_disable_host_checks="yes" rc settings allows bypassing all this
 # if your system should be supported but these checks break.
-# 
+#
 # @modifies VM_NO_UG
 #
 util::check_bhyve_support(){
@@ -114,6 +92,39 @@ util::check_bhyve_iommu(){
     return 0
 }
 
+# check if bhyve support snapshot/suspend
+#
+# @return success if bhyve is built with snapshot/suspend support
+#
+util::check_bhyve_suspend(){
+    local _rc
+    local _suspend_enaled
+
+    # userland
+    bhyvectl 2>&1 | grep -q -- "--suspend="
+    _rc=$?
+    if [ $_rc -gt 0 ]; then
+        util::warn "bhyve on this host does not support suspend"
+        return $_rc
+    fi
+
+    # kernel
+    sysctl kern.conftxt | grep -q "BHYVE_SNAPSHOT"
+    _rc=$?
+    if [ $_rc -gt 0 ]; then
+        util::warn "bhyve on this host does not support suspend"
+        return $_rc
+    fi
+
+    config::core::get "_suspend_enabled" "suspend" "no"
+    if ! util::yesno "${_suspend_enabled}"; then
+        util::warn "bhyve seems to support suspend but disabled in vm-bhyve config"
+        return 1
+    fi
+
+    return $_rc
+}
+
 # restart a local service
 # checks if service is running and either starts or restarts
 #
@@ -134,7 +145,7 @@ util::restart_service(){
 # show version
 #
 util::version(){
-    echo "vm-bhyve: Bhyve virtual machine management v${VERSION} (rev. ${VERSION_INT})"
+    echo "vm-bhyve: Bhyve virtual machine management v${VERSION}"
 }
 
 # show version & usage information
@@ -143,50 +154,56 @@ util::version(){
 util::usage(){
     util::version
     cat << EOT
-Usage: vm ...
-    version
-    init
-    set [setting=value] [...]
-    get [all|setting] [...]
-    switch list
-    switch info [name] [...]
-    switch create [-t type] [-i interface] [-n vlan-id] [-m mtu] [-a address/prefix-len] [-b bridge] [-p] <name>
-    switch vlan <name> <vlan|0>
-    switch nat <name> <on|off>
-    switch private <name> <on|off>
-    switch add <name> <interface>
-    switch remove <name> <interface>
-    switch destroy <name>
-    datastore list
-    datastore add <name> <spec>
-    datastore remove <name>
-    datastore add <name> <path>
-    list [-r]
-    info [name] [...]
-    create [-d datastore] [-t template] [-s size] [-m memory] [-c vCPUs] [-i vm-image] [-C -k pubkeys] [-n "netconfig"] <name>
-    install [-fi] <name> <iso>
-    start [-fi] <name> [...]
-    stop <name> [...]
-    restart <name>
-    console <name> [com1|com2]
-    configure <name>
-    rename <name> <new-name>
-    add [-d device] [-t type] [-s size|switch] <name>
-    startall
-    stopall
-    reset  [-f] <name>
-    poweroff [-f] <name>
-    destroy [-f] <name>
-    passthru
-    clone <name[@snapshot]> <new-name>
-    snapshot [-f] <name[@snapshot]>
-    rollback [-r] <name@snapshot>
-    iso [url]
-    img [url]
-    image list
-    image create [-d description] [-u] <name>
-    image destroy <uuid>
-    image provision [-d datastore] <uuid> <newname>
+
+Available subcommands grouped by scenario:
+
+Help / Information
+  usage         Display this help
+  help          Display help about any subcommand
+  version       Display version information about vm-bhyve
+
+Host and Infrastructure Management
+  init          Initialize the host; should be run after each reboot
+  switch        Manage virtual network switches
+  datastore     Manage datastores
+  get           Get all or specified global vm-bhyve configuration(s)
+  set           Set global vm-bhyve configuration(s)
+  passthru      List all passthru devices and their device IDs
+
+VM Management
+  list          Display list of guests
+  info          Display detailed info about all or specified guest(s)
+  create        Create a new guest
+  rename        Rename a guest
+  clone         Clone an existing guest
+  destroy       Remove a guest from the host
+  add           Add a new network or a disk to a guest
+  configure     Open the editor to modify a guest configuration
+  edit          Alias to configure
+  image         Manage images created from provisioned guests
+  console       Open a console to a guest
+  migrate       Transfer a guest from one to another using SSH
+
+VM Start/Stop Operations
+  install       Start a guest from a specified ISO for installation
+  start         Start specified guest(s)
+  stop          Stop specified running guest(s)
+  restart       Restart a running guest
+  suspend       Stop specified guest(s), while retaining their state
+  discard       Discard the suspended state of a guest
+  startall      Start all guests
+  stopall       Stop all guests
+  suspendall    Suspend all guests
+  reset         Reset a guest forcibly
+  poweroff      Power off a guest forcibly
+
+Snapshot Operations
+  snapshot      Take a snapshot of a guest
+  rollback      Roll back a guest to a snapshot
+
+Image Management
+  iso           List stored ISOs or download one
+  img           List stored VM images or download one
 EOT
     exit 1
 }
@@ -281,7 +298,7 @@ util::log(){
     esac
 
     while [ -n "$1" ]; do
-      echo "$(date +'%b %d %T'): $1" >> "${_file}"
+      echo "$(date -Iseconds): $1" >> "${_file}"
       shift
     done
 }
@@ -332,7 +349,7 @@ util::confirm(){
 
 # our own checkyesno copy
 # doesn't warn for unsupported values
-# also returns as 'yes' unless value is specifically no/off/false/0 
+# also returns as 'yes' unless value is specifically no/off/false/0
 #
 # @param _value the value to test
 # @return int 1 if set to "off/false/no/0", 0 otherwise
@@ -345,7 +362,7 @@ util::yesno(){
     case "$_value" in
         [Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
             return 1 ;;
-        *)  return 0 ;;		
+        *)  return 0 ;;
     esac
 }
 
@@ -361,11 +378,7 @@ util::check_name(){
     local _maxlen="$2"
 
     if [ -z "${_maxlen}" ]; then
-        if [ ${VERSION_BSD} -ge 1300000 ]; then
-            : ${_maxlen:=229}
-        else
-            : ${_maxlen:=30}
-        fi
+        : ${_maxlen:=229}
     fi
 
     echo "${_name}" | egrep -iqs "^[a-z0-9][.a-z0-9_-]{0,${_maxlen}}[a-z0-9]\$"
@@ -402,4 +415,46 @@ util::get_part(){
     local _num="$3"
 
     setvar "${_var}" $(echo "${_data}" |cut -w -f${_num})
+}
+
+#
+# pad_spaces
+# print spaces corresponding to the length of the given string
+#
+# @param string
+#
+util::pad_spaces(){
+    printf "%*s" "${#1}" ""
+}
+
+#
+# validate_cidr
+# validate the provided CIDR notation
+# if GNU ipcalc is available, perform stricter validation
+# otherwise, perform a simple check using regex
+#
+# @param string IPv4 or IPv6 CIDR expression
+#
+util::validate_cidr(){
+    local _has_ipcalc
+
+    # perform stricter check if GNU ipcalc is available (optional)
+    which ipcalc >/dev/null && pkg info -q gnu-ipcalc
+    _has_ipcalc=$?
+
+    # ipcalc cannot check if IP address contains netmask (/prefix)
+    # so check it using case glob
+    case "$1" in
+        */[0-9]*)
+            if [ "$_has_ipcalc" -eq 0 ]; then
+                ipcalc -sc "$1"
+            else
+                echo "$1" | egrep -iqs \
+                    -e '^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$' \
+                    -e '^([0-9a-f]{0,4}:){1,7}[0-9a-f]{0,4}/[0-9]{1,3}$'
+            fi
+            ;;
+        *) # no netmask
+            return 1 ;;
+    esac
 }

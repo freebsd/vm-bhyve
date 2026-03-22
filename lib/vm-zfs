@@ -1,28 +1,6 @@
 #!/bin/sh
-#-------------------------------------------------------------------------+
-# Copyright (C) 2016 Matt Churchyard (churchers@gmail.com)
-# All rights reserved
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted providing that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-FileCopyrightText: 2016 Matt Churchyard <churchers@gmail.com>
 
 # set us up for zfs use
 # we need the zfs dataset name for zfs commands, and the file system path
@@ -31,7 +9,7 @@
 # This can then be used for zfs commands, and we can retrieve the mountpoint
 # to find out the file path for bhyve
 #
-# This then overwrites $vm_dir with the file system path, so that the 
+# This then overwrites $vm_dir with the file system path, so that the
 # rest of vm-bhyve can work normally, regardless of whether we are in zfs mode
 # or not
 #
@@ -153,7 +131,7 @@ zfs::__format_options(){
 # create a snapshot of a guest
 # specify the snapshot name in zfs format guest@snap
 # if no snapshot name is specified, Y-m-d-H:M:S will be used
-# 
+#
 # @param flag (-f) force snapshot if guest is running
 # @param string _name the name of the guest to snapshot
 #
@@ -173,7 +151,7 @@ zfs::snapshot(){
         _name=${_name%%@*}
     fi
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "snapshot"
     datastore::get_guest "${_name}" || util::err "${_name} does not appear to be an existing virtual machine"
     [ ! "${VM_DS_ZFS}" = "1" ] && util::err "cannot snapshot guests on non-zfs datastores"
     [ -z "${_snap}" ] && _snap=$(date +"%Y-%m-%d-%H:%M:%S")
@@ -212,7 +190,7 @@ zfs::remove_snapshot(){
 # roll a guest back to a previous snapshot
 # we show zfs errors here as it will fail if the snapshot is not the most recent.
 # zfs will output an error mentioning to use '-r', and listing the snapshots
-# that will be deleted. makes sense to let user see this and just support 
+# that will be deleted. makes sense to let user see this and just support
 # that option directly
 #
 # @param flag (-r) force deletion of more recent snapshots
@@ -224,11 +202,13 @@ zfs::rollback(){
     while getopts r _opt; do
         case $_opt in
             r) _force="-r" ;;
-            *) util::usage ;;
+            *) help::show "rollback" ;;
         esac
     done
 
     shift $((OPTIND - 1))
+
+    [ -z "$1" ] && help::show "rollback"
 
     _snap_exists=$(echo "${1}" | grep "@")
     [ -z "${_snap_exists}" ] && util::err "a snapshot name must be provided in guest@snapshot format"
@@ -236,7 +216,7 @@ zfs::rollback(){
     _name="${1%%@*}"
     _snap="${1##*@}"
 
-    [ -z "${_name}" -o -z "${_snap}" ] && util::usage
+    [ -z "${_name}" -o -z "${_snap}" ] && help::show "rollback"
 
     datastore::get_guest "${_name}" || util::err "${_name} does not appear to be an existing virtual machine"
     [ ! "${VM_DS_ZFS}" = "1" ] && util::err "cannot rollback guests on non-zfs datastores"
@@ -266,7 +246,7 @@ zfs::clone(){
     local _uuid=$(uuidgen)
 
     # check args and make sure new guest doesn't already exist
-    [ -z "${_old}" -o -z "${_name}" ] && util::usage
+    [ -z "${_old}" -o -z "${_name}" ] && help::show "clone"
     datastore::get_guest "${_name}" && util::err "new guest already exists in ${VM_DS_PATH}/${_name}"
 
     # try to get snapshot name
@@ -289,6 +269,7 @@ zfs::clone(){
     # generate a short uuid and create snapshot if no custom snap given
     if [ -z "${_snap}" ]; then
         vm::confirm_stopped "${_old}" || exit 1
+        vm::has_saved_state "${_old}" && util::err "guest appears to be suspended, stop it before cloning"
         _snap=$(echo "${_uuid}" |awk -F- '{print $1}')
 
         zfs snapshot -r "${VM_DS_ZFS_DATASET}/${_old}@${_snap}"
@@ -339,7 +320,7 @@ zfs::image_create(){
         case $_opt in
             d) _desc=${OPTARG} ;;
             u) _no_compress="1" ;;
-            *) util::usage ;;
+            *) help::show "image" ;;
         esac
     done
 
@@ -347,8 +328,9 @@ zfs::image_create(){
     _name=$1
     _uuid=$(uuidgen)
     _snap=${_uuid%%-*}
-    _date=$(date)
+    _date=$(date -Iseconds)
 
+    [ -z "${_name}" ] && help::show "image"
     [ -z "${_desc}" ] && _desc="No description provided"
 
     datastore::get_guest "${_name}" || util::err "${_name} does not appear to be a valid virtual machine"
@@ -415,7 +397,7 @@ zfs::image_provision(){
     while getopts d: _opt ; do
         case $_opt in
             d) _datastore="${OPTARG}" ;;
-            *) util::usage ;;
+            *) help::show "image" ;;
         esac
     done
 
@@ -423,7 +405,7 @@ zfs::image_provision(){
     _uuid="$1"
     _name="$2"
 
-    [ -z "${_uuid}" -o -z "${_name}" ] && util::usage
+    [ -z "${_uuid}" -o -z "${_name}" ] && help::show "image"
     [ ! -e "${vm_dir}/images/${_uuid}.manifest" ] && util::err "unable to locate image with uuid ${_uuid}"
     datastore::get_guest "${_name}" && util::err "new guest already exists in ${VM_DS_PATH}/${_name}"
 
@@ -507,7 +489,7 @@ zfs::image_destroy(){
     local _uuid="$1"
     local _file
 
-    [ -z "${_uuid}" ] && util::usage
+    [ -z "${_uuid}" ] && help::show "image"
     [ ! -e "${vm_dir}/images/${_uuid}.manifest" ] && util::err "unable to locate image with uuid ${_uuid}"
 
     # get the image filename

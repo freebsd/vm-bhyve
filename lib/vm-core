@@ -1,28 +1,6 @@
 #!/bin/sh
-#-------------------------------------------------------------------------+
-# Copyright (C) 2016 Matt Churchyard (churchers@gmail.com)
-# All rights reserved
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted providing that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-FileCopyrightText: 2016 Matt Churchyard <churchers@gmail.com>
 
 # 'vm list'
 # list virtual machines
@@ -38,7 +16,7 @@ core::list(){
         case ${_opt} in
             r) _running_only='true' ;;
             v) VM_OPT_VERBOSE="1" ;;
-            *) util::usage ;;
+            *) help::show "list" ;;
         esac
     done
 
@@ -82,7 +60,7 @@ core::list(){
 
                     # if running and graphics, try to get vnc port
                     if config::yesno "graphics"; then
-                        _vnc=$(grep vnc "${VM_DS_PATH}/${_name}/console" 2>/dev/null |cut -d= -f2)
+                        _vnc=$(grep ^vnc "${VM_DS_PATH}/${_name}/console" 2>/dev/null |cut -d= -f2)
                         [ -z "${_vnc}" ] && _vnc="-"
                     fi
                 fi
@@ -115,8 +93,10 @@ core::list(){
                     _run="Locked (${_run})"
                 fi
 
-                if [ "${_run}" = "Stopped" -a -n "${_running_only}" ]; then
-                    continue
+                if [ -n "${_running_only}" ]; then
+                    if [ "${_run}" = "Stopped" -o "${_run}" = "Suspended" ]; then
+                        continue
+                    fi
                 fi
 
                 if [ -n "${VM_OPT_VERBOSE}" ]; then
@@ -140,8 +120,9 @@ core::create(){
     local _name _opt _size _vmdir _disk _disk_dev _num=0
     local _zfs_opts _disk_size _template="default" _ds="default" _ds_path _img _cpu _memory _uuid
     local _enable_cloud_init _cloud_init_dir _ssh_public_keys _ssh_public_key _ssh_key_file _network_config _mac
+    local _user_data_file
 
-    while getopts d:t:s:i:c:m:Ck:n: _opt ; do
+    while getopts d:t:s:i:c:m:Ck:n:u: _opt ; do
         case $_opt in
             t) _template=${OPTARG} ;;
             s) _size=${OPTARG} ;;
@@ -152,15 +133,16 @@ core::create(){
             k) _ssh_key_file=${OPTARG} ;;
             C) _enable_cloud_init='true' ;;
             n) _network_config=${OPTARG} ;;
+            u) _user_data_file=${OPTARG} ;;
 
-            *) util::usage ;;
+            *) help::show "create" ;;
         esac
     done
 
     shift $((OPTIND - 1))
     _name=$1
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "create"
 
     # check guest name
     util::check_name "${_name}" || util::err "invalid virtual machine name - '${_name}'"
@@ -182,10 +164,25 @@ core::create(){
 
     # get ssh public key for cloud-init from file
     if [ -n "${_ssh_key_file}" ]; then
-
       [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for injecting public key. Use -C to enable it."
       [ ! -r "${_ssh_key_file}" ] && util::err "can't read file with public key (${_ssh_key_file})"
       _ssh_public_keys="$(sed -e '/^$/d' -e '/^#/d' "${_ssh_key_file}")"
+    fi
+
+    # validate user-data file for cloud-init
+    if [ -n "${_user_data_file}" ]; then
+      [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for user-data file. Use -C to enable it."
+      [ ! -r "${_user_data_file}" ] && util::err "can't read user-data file (${_user_data_file})"
+    fi
+
+    # -u and -k are mutually exclusive
+    if [ -n "${_user_data_file}" ] && [ -n "${_ssh_key_file}" ]; then
+      util::err "-u and -k are mutually exclusive; use one or the other"
+    fi
+
+    # validate network config for cloud-init
+    if [ -n "${_network_config}" ]; then
+      [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for network config. Use -C to enable it."
     fi
 
     # if we're on zfs, make a new filesystem
@@ -256,6 +253,11 @@ core::create(){
 }
 
 core::create_cloud_init(){
+    local _cloud_init_dir _hostname
+    local _network_config_interface _network_config_ipaddress _network_config_gateway4 \
+          _network_config_gateway6 _network_config_nameservers _network_config_searchdomains \
+          _network_config_hostname
+
     # create disk with metadata for cloud-init
     _cloud_init_dir="${VM_DS_PATH}/${_name}/.cloud-init"
     # Use VM's name as a hostname by default
@@ -264,39 +266,13 @@ core::create_cloud_init(){
     mkdir -p "${_cloud_init_dir}"
 
     if [ -n "${_network_config}" ]; then
-        # Example netconfig param: "interface=vtnet0;ip=10.0.0.2/24;gateway=10.0.0.1;nameservers=1.1.1.1,8.8.8.8;searchdomains=example.com,example.org"
-        _network_config_interface="$(echo "${_network_config}" | \
-            grep -oE 'interface=[^;]*' | sed 's/^interface=//')";
-        _network_config_ipaddress="$(echo "${_network_config}" | \
-            grep -oE 'ip=[^;]*' | sed 's/^ip=//')"
-        _network_config_gateway="$(echo "${_network_config}" | \
-            grep -oE 'gateway=[^;]*' | sed 's/^gateway=//')"
-        _network_config_nameservers="$(echo "${_network_config}" | \
-            grep -oE 'nameservers=[^;]*' | sed 's/^nameservers=//')"
-        _network_config_searchdomains="$(echo "${_network_config}" | \
-            grep -oE 'searchdomains=[^;]*' | sed 's/^searchdomains=//')"
-        _network_config_hostname="$(echo "${_network_config}" | \
-            grep -oE 'hostname=[^;]*' | sed 's/^hostname=//')"
+        core::parse_netconfig "${_network_config}"
+        core::compile_network_config > "${_cloud_init_dir}/network-config"
 
         # Override default hostname when network config is passed to cloud-init
         if [ ! -z "${_network_config_hostname}" ]; then
                 _hostname="${_network_config_hostname}"
         fi
-
-        cat << EOF > "${_cloud_init_dir}/network-config"
-version: 2
-ethernets:
-  id0:
-    set-name: ${_network_config_interface:-eth0}
-    match:
-      macaddress: "${_mac}"
-    addresses:
-      - ${_network_config_ipaddress}
-    gateway4: ${_network_config_gateway}
-    nameservers:
-      search: [${_network_config_searchdomains}]
-      addresses: [${_network_config_nameservers}]
-EOF
     fi
 
     cat << EOF > "${_cloud_init_dir}/meta-data"
@@ -304,26 +280,140 @@ instance-id: ${_uuid}
 local-hostname: ${_hostname}
 EOF
 
-    cat << EOF > "${_cloud_init_dir}/user-data"
+    # create user-data: use provided file or generate default
+    if [ -n "${_user_data_file}" ]; then
+        cp "${_user_data_file}" "${_cloud_init_dir}/user-data"
+    else
+        cat << EOF > "${_cloud_init_dir}/user-data"
 #cloud-config
 resize_rootfs: True
 manage_etc_hosts: localhost
 EOF
 
-    if [ -n "${_ssh_public_keys}" ]; then
-        cat << EOF >> "${_cloud_init_dir}/user-data"
+        if [ -n "${_ssh_public_keys}" ]; then
+            cat << EOF >> "${_cloud_init_dir}/user-data"
 ssh_authorized_keys:
 EOF
-        echo "${_ssh_public_keys}" | while read -r _ssh_public_key; do
-            cat << EOF >> "${_cloud_init_dir}/user-data"
+            echo "${_ssh_public_keys}" | while read -r _ssh_public_key; do
+                cat << EOF >> "${_cloud_init_dir}/user-data"
   - ${_ssh_public_key}
 EOF
-        done
+            done
+        fi
     fi
 
     config::set "${_name}" "disk${_num}_type" "ahci-cd"
     config::set "${_name}" "disk${_num}_name" "seed.iso"
     config::set "${_name}" "disk${_num}_dev" "file"
+}
+
+
+# parse cloud-init netconfig string passed via `vm create -C -n [netconfig]`
+#
+# @private
+# @param string netconfig
+#
+core::parse_netconfig(){
+    local _network_config
+
+    _network_config="$1"
+
+    _network_config_interface="$(echo "${_network_config}" | \
+        grep -oE 'interface=[^;]*' | sed 's/^interface=//')";
+    _network_config_ipaddress="$(echo "${_network_config}" | \
+        grep -oE 'ip=[^;]*' | sed 's/^ip=//')"
+    _network_config_gateway4="$(echo "${_network_config}" | \
+        grep -oE 'gateway4=[^;]*' | sed 's/^gateway4=//')"
+    _network_config_gateway6="$(echo "${_network_config}" | \
+        grep -oE 'gateway6=[^;]*' | sed 's/^gateway6=//')"
+    _network_config_nameservers="$(echo "${_network_config}" | \
+        grep -oE 'nameservers=[^;]*' | sed 's/^nameservers=//')"
+    _network_config_searchdomains="$(echo "${_network_config}" | \
+        grep -oE 'searchdomains=[^;]*' | sed 's/^searchdomains=//')"
+    _network_config_hostname="$(echo "${_network_config}" | \
+        grep -oE 'hostname=[^;]*' | sed 's/^hostname=//')"
+
+}
+
+# compile cloud-init network-config
+#
+# @private
+#
+core::compile_network_config(){
+    local _addr _ipv4_found ipv6_found
+    local _tmpfile=$(mktemp)
+
+    cat << EOF >> "${_tmpfile}"
+version: 2
+ethernets:
+  id0:
+EOF
+
+    echo "    set-name: ${_network_config_interface:-eth0}" >> ${_tmpfile}
+    echo "    match:" >> ${_tmpfile}
+    echo "      macaddress: ${_mac}" >> ${_tmpfile}
+
+    # IP addresses
+    if [ ! -z "${_network_config_ipaddress}" ]; then
+        OLDIFS=$IFS
+        IFS=,
+        for _addr in ${_network_config_ipaddress}; do
+            case "${_addr}" in
+                *:*)
+                    _ipv6_found="1"
+                    ;;
+                *.*)
+                    _ipv4_found="1"
+                    ;;
+
+            esac
+        done
+        IFS=$OLDIFS
+        echo "    addresses: [${_network_config_ipaddress}]" >> ${_tmpfile}
+    fi
+
+    # use DHCP if no IPv4 address specified
+    if [ -z "${_ipv4_found}" ]; then
+        echo "    dhcp4: true" >> ${_tmpfile}
+    fi
+
+    # use DHCP and RA if no IPv6 specified
+    if [ -z "${_ipv6_found}" ]; then
+        echo "    dhcp6: true"  >> ${_tmpfile}
+        echo "    accept-ra: true"  >> ${_tmpfile}
+    fi
+
+    # nameservers & searchdomains
+    if [ -n "${_network_config_serachdomains}" -o -n "${_network_config_nameservers}" ]; then
+        echo "    nameservers:" >> ${_tmpfile}
+
+        if [ -n "${_network_config_nameservers}" ]; then
+            echo "      addresses: [${_network_config_nameservers}]" >> ${_tmpfile}
+        fi
+
+        if [ -n "${_searchdomains}" ]; then
+            echo "      search: [${_searchdomains}]" >> ${_tmpfile}
+        fi
+    fi
+
+    # gateway
+    if [ -n "${_network_config_gateway4}" -o -n "${_network_config_gateway6}" ]; then
+        echo "    routes:" >> ${_tmpfile}
+
+        if [ -n "${_network_config_gateway4}" ]; then
+            echo "      - to: 0.0.0.0/0" >> ${_tmpfile}
+            echo "        via: ${_network_config_gateway4}" >> ${_tmpfile}
+        fi
+
+        if [ -n "${_network_config_gateway6}" ]; then
+            echo "      - to: ::/0" >> ${_tmpfile}
+            echo "        via: ${_network_config_gateway6}" >> ${_tmpfile}
+        fi
+    fi
+
+
+    cat "${_tmpfile}"
+    rm -f -- "${_tmpfile}"
 }
 
 # write cloud image to disk image
@@ -363,7 +453,7 @@ core::write_img(){
 
     # if disk type is file then we need to resize it
     if [ "${_disk_type}" = "file" ]; then
-        qemu-img resize "${_disk_dev}" "${_disk_size}"
+        qemu-img resize -q -f raw "${_disk_dev}" "${_disk_size}"
         if [ $? -ne 0 ]; then
             util::err "failed to resize img file with qemu-img"
         fi
@@ -386,7 +476,7 @@ core::add(){
             d) _device=${OPTARG} ;;
             t) _type=${OPTARG} ;;
             s) _sopt=${OPTARG} ;;
-            *) util::usage ;;
+            *) help::show "add";;
         esac
     done
 
@@ -394,7 +484,7 @@ core::add(){
     _name="$1"
 
     # check guest
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "add"
     datastore::get_guest "${_name}" || "${_name} does not appear to be a valid virtual machine"
 
     case "${_device}" in
@@ -421,7 +511,7 @@ core::add_disk(){
 
     : ${_device:=file}
 
-    [ -z "${_size}" ] && util::usage
+    [ -z "${_size}" ] && help::show "add"
 
     # get the last existing disk
     config::load "${VM_DS_PATH}/${_name}/${_name}.conf"
@@ -474,7 +564,7 @@ core::add_network(){
     local _switch="$2"
     local _num=0 _curr _emulation
 
-    [ -z "${_switch}" ] && util::usage
+    [ -z "${_switch}" ] && help::show "add"
 
     config::load "${VM_DS_PATH}/${_name}/${_name}.conf"
 
@@ -508,7 +598,7 @@ core::install(){
     _name="$1"
     _iso="$2"
 
-    [ -z "${_name}" -o -z "${_iso}" ] && util::usage
+    [ -z "${_name}" -o -z "${_iso}" ] && help::show "install"
 
     # just run start with an iso
     datastore::iso_find "_fulliso" "${_iso}" || util::err "unable to locate iso file - '${_iso}'"
@@ -602,6 +692,89 @@ core::stopall(){
     wait_for_pids ${_pids}
 }
 
+# 'vm suspendall'
+#
+# suspend all bhyve instances
+#
+# Unlike stopall, this will only suspend instances started by vm-bhyve,
+# as it cannot determine where to save the state file for instances
+# started by other tools.
+#
+core::suspendall()
+{
+    local _pids=$(pgrep -f 'bhyve:' | tr '\n' ' ')
+    local _stop_parallel _stop_list _running _list_rev _curr
+    local _stop_p_pids _pid
+
+    util::check_bhyve_suspend || util::err "unable to suspend the guest"
+
+    cmd::parse_args "$@"
+    : ${vm_delay:=2}
+
+    # get a list of running bhyve instances
+    _running=$(pgrep -lf 'bhyve:' | cut -d" " -f3 | tr '\n' ' ')
+    [ -z "${_running}" ] && return 0
+
+    # do we have any guests to stop in order
+    if [ -z "${VM_OPT_FORCE}" -a -n "${vm_list}" ]; then
+        # reverse the configured start order
+        for _curr in ${vm_list}; do
+            _list_rev="${_curr} ${_list_rev}"
+        done
+
+        # go through each autostart guest
+        # if running add to stop list.
+        # we are searching in reverse start order, so should get an ordered shutdown
+        for _curr in ${_list_rev}; do
+            echo "${_running}" | grep -qs "${_curr} "
+
+            if [ $? -eq 0 ]; then
+                _stop_list="${_stop_list}${_stop_list:+ }${_curr}"
+            fi
+        done
+
+        # look for anything running that isn't in the ordered stop list
+        for _curr in ${_running}; do
+            echo "${_stop_list}" | grep -qs "${_curr}\b"
+            if [ $? -ne 0 ]; then
+                _stop_parallel="${_stop_parallel}${_stop_parallel:+ }${_curr}"
+                util::getpid "_pid" "bhyve: ${_curr}\$"
+                [ $? -eq 0 ] && _stop_p_pids="${_stop_p_pids}${_stop_p_pids:+ }${_pid}"
+            fi
+        done
+    else
+        # nothing ordered, or a force suspend
+        # just do everything at once
+        _stop_parallel="${_running}"
+        _stop_p_pids="${_pids}"
+    fi
+
+    # ===== same as core::stopall() up to this line ===
+
+    echo "Beginning shutdown process (suspend)"
+
+    # suspending non-ordered guests
+    if [ -n "${_stop_parallel}" ]; then
+        echo "  * parallel suspend of non-ordered guests: ${_stop_parallel}"
+        for _curr in ${_stop_parallel}; do
+            echo "  * suspending ${_curr}"
+            core::suspend "${_curr}" >/dev/null 2>&1
+        done
+    fi
+
+    # suspending ordered guests
+    if [ -n "${_stop_list}" ]; then
+        for _curr in ${_stop_list}; do
+            echo "  * waiting ${vm_delay} second(s)" && sleep ${vm_delay}
+            echo "  * suspending ${_curr}"
+            core::suspend "${_curr}" >/dev/null 2>&1
+        done
+    fi
+
+    echo ""
+    wait_for_pids ${_pids}
+}
+
 # 'vm start'
 # start a virtual machine
 #
@@ -610,13 +783,13 @@ core::stopall(){
 core::start(){
     local _name
     local _done
-    local _rc
+    local _rc _rcsum=0
 
     cmd::parse_args "$@"
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "start"
     : ${vm_delay:=2}
 
     # disable foreground/interactive if we're starting more than one
@@ -628,14 +801,19 @@ core::start(){
     while [ -n "${_name}" ]; do
         [ -n "${_done}" ] && echo "Waiting ${vm_delay} second(s)" && sleep ${vm_delay}
         core::__start "${_name}"
+
         _rc=$?
         if [ ${_rc} -ne 0 ]; then
-            return ${_rc}
+            _rcsum=$((${_rcsum} + ${_rc}))
         fi
         shift
+
         _name="$1"
         _done="1"
     done
+
+    # returns the number of VMs that failed to start
+    return ${_rcsum}
 }
 
 # actually start a virtual machine
@@ -704,7 +882,12 @@ core::__start(){
         return 1
     fi
 
-    echo "  * booting..."
+    if util::check_bhyve_suspend >/dev/null 2>&1 && vm::has_saved_state "${_name}"; then
+        echo "  * found saved vm state, resuming..."
+    else
+        echo "  * booting..."
+    fi
+
 
     # run background process to actually start bhyve
     # this will run as long as vm is running, including restarting bhyve after guest reboot
@@ -721,6 +904,11 @@ core::__start(){
         else
             ${_tmux_cmd} new -ds "${_tmux_name}" $0 _run -tf "${_name}" "${_iso}"
         fi
+    elif [ -n "${VM_OPT_INTERACTIVE}" ]; then
+        # interactive && console != tmux
+        # connect to the console using cu if global console setting not set to tmux
+        $0 _run "${_name}" "${_iso}" >/dev/null 2>&1 &
+        core::console -w "${_name}"
     else
         $0 _run "${_name}" "${_iso}" >/dev/null 2>&1 &
     fi
@@ -750,7 +938,7 @@ core::stop(){
     local _name="$1"
     local _pid _loadpid
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "stop"
 
     while [ -n "${_name}" ]; do
         if [ ! -e "/dev/vmm/${_name}" ]; then
@@ -764,8 +952,47 @@ core::stop(){
                 kill "${_pid}" >/dev/null 2>&1
                 sleep 1
                 kill "${_pid}" >/dev/null 2>&1
+                # remove saved vm state after normal shutdown
+                core::discard -f "${_name}"
             elif [ -n "${_loadpid}" ]; then
                 if util::confirm "Guest ${_name} is in bootloader stage, do you wish to force exit"; then
+                    echo "Killing ${_name}"
+                    kill "${_loadpid}"
+                    bhyvectl --destroy --vm=${_name} >/dev/null 2>&1
+                fi
+            else
+                util::warn "unable to locate process id for ${_name}"
+            fi
+        fi
+        shift
+        _name="$1"
+    done
+}
+
+core::suspend(){
+    local _name="$1"
+    local _pid _loadpid
+
+    util::check_bhyve_suspend || util::err "unable to suspend the guest"
+
+    [ -z "${_name}" ] && help::show "suspend"
+
+    datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
+
+    while [ -n "${_name}" ]; do
+        if [ ! -e "/dev/vmm/${_name}" ]; then
+            util::warn "${_name} doesn't appear to be a running virtual machine"
+        else
+            _pid=$(pgrep -fx "bhyve: ${_name}")
+            _loadpid=$(pgrep -fl "grub-bhyve|bhyveload" | grep " ${_name}\$" |cut -d' ' -f1)
+
+            if [ -n "${_pid}" ]; then
+                echo "Suspending ${_name}"
+                # TODO: convert to function
+                hostname > "${VM_DS_PATH}/${_name}/suspending.lock"
+                bhyvectl --vm=${_name} --suspend="${VM_DS_PATH}/${_name}/${_name}.save" >/dev/null 2>&1
+            elif [ -n "${_loadpind}" ]; then
+                if util::confirm "Guest ${_name} is in bootloader stage and cannot suspend, do you wish to force exit"; then
                     echo "Killing ${_name}"
                     kill "${_loadpid}"
                     bhyvectl --destroy --vm=${_name} >/dev/null 2>&1
@@ -791,7 +1018,7 @@ core::reset(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "reset"
     [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
 
     if [ -z "${VM_OPT_FORCE}" ]; then
@@ -813,14 +1040,15 @@ core::poweroff(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "poweroff"
     [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
 
     if [ -z "${VM_OPT_FORCE}" ]; then
         util::confirm "Are you sure you want to forcefully poweroff this virtual machine" || exit 0
     fi
 
-    bhyvectl --force-poweroff --vm=${_name}
+    # remove saved vm state on forceful poweroff
+    bhyvectl --force-poweroff --vm=${_name} && bhyvectl --destroy --vm=${_name} && core::discard -f "${_name}"
 }
 
 # 'vm destroy'
@@ -835,7 +1063,7 @@ core::destroy(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "destroy"
 
     # trying to remove a snapshot?
     echo "${_name}" | grep -qs "@"
@@ -859,6 +1087,44 @@ core::destroy(){
     exit 0
 }
 
+# 'vm discard'
+# discard the saved state of a guest
+#
+# @param string _name name of the guest
+#
+core::discard(){
+    local _name _rc=0
+
+    cmd::parse_args "$@"
+    shift $?
+    _name="$1"
+
+    [ -z "${_name}" ] && help::show "discard"
+
+    # core::discard only accepts one target guest
+    [ ! -z "$2" ] && help::show "discard"
+
+    datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
+
+    if [ -z "${VM_OPT_FORCE}" ]; then
+        util::confirm "Are you sure you want to remove the saved state of this virtual machine" || exit 0
+    fi
+
+    if ! vm::has_saved_state "${_name}"; then
+        if [ -z "${VM_OPT_FORCE}" ]; then
+            util::err "no saved state exists for ${_name}"
+        else
+            # When VM_OPT_FORCE is set, do not error if no saved state exists
+            return 0
+        fi
+    fi
+
+    # remove vm state file
+    find "${VM_DS_PATH}/${_name}" -name "${_name}.save*" -type f -delete
+
+    exit $?
+}
+
 # 'vm rename'
 # rename an existing guest
 #
@@ -868,8 +1134,9 @@ core::destroy(){
 core::rename(){
     local _old="$1"
     local _new="$2"
+    local _mv_failed
 
-    [ -z "${_old}" -o -z "${_new}" ] && util::usage
+    [ -z "${_old}" -o -z "${_new}" ] && help::show "rename"
     util::check_name "${_new}" || util::err "invalid virtual machine name - '${_name}'"
 
     datastore::get_guest "${_new}" && util::err "directory ${VM_DS_PATH}/${_new} already exists"
@@ -890,6 +1157,17 @@ core::rename(){
     # rename config file
     mv "${VM_DS_PATH}/${_new}/${_old}.conf" "${VM_DS_PATH}/${_new}/${_new}.conf" >/dev/null 2>&1
     [ $? -eq 0 ] || util::err "changed guest directory but failed to rename configuration file"
+
+    # rename saved vm state file
+    _mv_failed=0
+    (
+        cd "${VM_DS_PATH}/${_new}" || exit 1
+        find . -type f -depth 1 -name "${_old}.save*" | while read -r oldf; do
+            newf="$(echo "${oldf}" | sed "s|${_old}|${_new}|" )"
+            echo mv "${oldf} ${newf}" || _mv_failed=1
+        done
+    )
+    [ "${_mv_failed}" -eq 0 ] || util::err "changed guest directory but failed to rename saved vm state file"
 }
 
 # 'vm console'
@@ -903,14 +1181,35 @@ core::rename(){
 # @param string _port the port to connect to (default = first in configuration)
 #
 core::console(){
-    local _name="$1"
-    local _port="$2"
-    local _console _tmux _tmux_cmd
+    local _name _port
+    local _console _tmux _tmux_cmd _wait_for_vm
 
-    [ -z "${_name}" ] && util::usage
+    while getopts w _opt ; do
+        case $_opt in
+            w) _wait_for_vm="1" ;;
+            *) help::show "console" ;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
+
+    _name="$1"
+    _port="$2"
+
+    [ -z "${_name}" ] && help::show "console"
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
-    [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
+
+    if [ -n "${_wait_for_vm}" ]; then
+        echo "Waiting for ${_name} to start..."
+        # wait for the VM to start; /dev/vmm/${_name} usually appears within 50 ms
+        sleep 0.05
+        while [ ! -e "/dev/vmm/${_name}" ]; do
+            sleep 1
+        done
+    else
+        [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
+    fi
 
     if [ -e "${VM_DS_PATH}/${_name}/console" ]; then
 
@@ -948,14 +1247,31 @@ core::console(){
 #
 core::configure(){
     local _name="$1"
+    local _target="$2"
 
-    [ -z "${_name}" ] && util::usage
+    [ -z "${_name}" ] && help::show "configure"
     [ -z "${EDITOR}" ] && EDITOR="vi"
 
     datastore::get_guest "${_name}" || \
         util::err "cannot locate configuration file for virtual machine: ${_name}"
 
-    $EDITOR "${VM_DS_PATH}/${_name}/${_name}.conf"
+    case "$_target" in
+        meta-data|network-config|user-data)
+            [ -d "${VM_DS_PATH}/${_name}/.cloud-init" ] || \
+                util::err "cloud-init is not enabled for this guest"
+            if [ -e "${VM_DS_PATH}/${_name}/seed.iso" ]; then
+                util::confirm "cloud-init has run already. changes won't take effect. edit anyway?" || exit 0
+            fi
+
+            $EDITOR "${VM_DS_PATH}/${_name}/.cloud-init/${_target}"
+            ;;
+        "")
+            $EDITOR "${VM_DS_PATH}/${_name}/${_name}.conf"
+            ;;
+        *)
+            help::show "configure"
+            ;;
+    esac
 }
 
 # 'vm iso'
@@ -964,12 +1280,15 @@ core::configure(){
 # @param string _url if specified, the url will be fetch'ed into $vm_dir/.iso
 #
 core::iso(){
-    local _url _ds="default"
+    local _url _ds="default" _filename
+    local _fetch_opts
 
-    while getopts d:u _opt ; do
+    while getopts 46d:u _opt ; do
         case $_opt in
+            4) _fetch_opts="${_fetch_opts} -4" ;;
+            6) _fetch_opts="${_fetch_opts} -6" ;;
             d) _ds=${OPTARG} ;;
-            *) util::usage ;;
+            *) help::show "iso" ;;
         esac
     done
 
@@ -978,7 +1297,11 @@ core::iso(){
 
     if [ -n "${_url}" ]; then
         datastore::get_iso "${_ds}" || util::err "unable to locate path for datastore '${_ds}'"
-        fetch -o "${VM_DS_PATH}" "${_url}"
+        # Essentially, -4 and -6 are mutually exclusive, but fetch(1) does not enforce it.
+        # The last one wins, so leaving it to fetch(1).
+        fetch ${_fetch_opts} -o "${VM_DS_PATH}" "${_url}"
+        _filename=$(basename "${_url}")
+        core::decompress "${VM_DS_PATH}/${_filename}"
     else
         datastore::iso_list
     fi
@@ -1013,14 +1336,17 @@ core::decompress(){
 #
 core::img(){
     local _url _ds="default" _filename
+    local _fetch_opts
     if ! which qemu-img > /dev/null; then
         util::err "Error: qemu-img is required to work with cloud images! Run 'pkg install qemu-tools'."
     fi
 
-    while getopts d:u _opt ; do
+    while getopts 46d:u _opt ; do
         case $_opt in
+            4) _fetch_opts="${_fetch_opts} -4" ;;
+            6) _fetch_opts="${_fetch_opts} -6" ;;
             d) _ds=${OPTARG} ;;
-            *) util::usage ;;
+            *) help::show "img" ;;
         esac
     done
 
@@ -1030,7 +1356,9 @@ core::img(){
     if [ -n "${_url}" ]; then
         datastore::get_img "${_ds}" || util::err "unable to locate path for datastore '${_ds}'"
         _filename=$(basename "${_url}")
-        fetch -o "${VM_DS_PATH}" "${_url}"
+        # Essentially, -4 and -6 are mutually exclusive, but fetch(1) does not enforce it.
+        # The last one wins, so leaving it to fetch(1).
+        fetch ${_fetch_opts} -o "${VM_DS_PATH}" "${_url}"
         core::decompress "${VM_DS_PATH}/${_filename}"
     else
         datastore::img_list
