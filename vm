@@ -22,6 +22,7 @@ fi
 . "${LIB}/vm-rctl"
 . "${LIB}/vm-run"
 . "${LIB}/vm-switch"
+. "${LIB}/vm-tags"
 . "${LIB}/vm-util"
 . "${LIB}/vm-zfs"
 

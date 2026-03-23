@@ -93,6 +93,7 @@
 .Nm
 .Cm list
 .Op Fl rv
+.Op Fl t Ar tag
 .Nm
 .Cm info
 .Op Ar name
@@ -181,6 +182,22 @@
 .Op Fl i Ar snapshot
 .Op Fl d Ar datastore
 .Ar guest host
+.Nm
+.Cm tags add
+.Ar name tag1
+.Op Ar tag2
+.Op Ar ...
+.Nm
+.Cm tags remove
+.Ar name tag1
+.Op Ar tag2
+.Op Ar ...
+.Nm
+.Cm tags find
+.Ar tag
+.Nm
+.Cm tags list
+.Ar name
 .Pp
 .Nm
 .Cm iso
@@ -722,6 +739,7 @@ disk images & configuration.
 .It Xo
 .Cm list
 .Op Fl rv
+.Op Fl t Ar tag
 .Xc
 .br
 List all the virtual machines in the
@@ -736,6 +754,12 @@ option displays additional information about each virtual machine.
 If the
 .Ar -r
 option is specified, only running guests are listed.
+.Pp
+If the
+.Ar -t
+option and a
+.Ar tag
+is speficied, only guests with the specified tag are listed.
 .It Cm info Op Ar name Op Ar ...
 Shows detailed information about the specified virtual machine(s).
 If no names are given, information for all virtual machines is displayed.
@@ -1147,6 +1171,30 @@ When running the second stage of migration, this parameter is used to specify
 the name of the snapshot to base the incremental send on.
 This snapshot must exist on both hosts.
 .El
+.It Xo
+.Cm tags add
+.Ar name
+.Ar tag1 Op tag2 ...
+.Xc
+Add tag(s) to the named virtual machine.
+Multiple tags can be added in one operation.
+.It Xo
+.Cm tags remove
+.Ar name
+.Ar tag1 Op tag2 ...
+.Xc
+Remove tag(s) from the named virtual machine.
+Multiple tags can be removed in one operation.
+.It Xo
+.Cm tags find
+.Ar tag
+.Xc
+List virtual machines with the specified tag as a space-separated list.
+.It Xo
+.Cm tags list
+.Ar name
+.Xc
+List tags attached to the specified virtual machine.
 .It Xo
 .Cm iso
 .Op Fl 46

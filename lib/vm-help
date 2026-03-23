@@ -111,10 +111,11 @@ Usage:
 #
 _hs_list="
 Usage:
-    vm list [-rv]
+    vm list [-rv] [-t <tag>]
 
 Options:
     -r      List running guests only
+    -t      Filter guests by a specified tag
     -v      Verbose mode
 "
 
@@ -236,6 +237,22 @@ Usage:
 
 Options:
     -w      Wait until a guest before connecting to console
+"
+
+#------------------------------------------------------------------------------
+
+_hs_tags="
+Usage:
+    vm tags add <name> <tag1> [tag2] [...]
+    vm tags remove <name> <tag1> [tag2] [...]
+    vm tags find <tag>
+    vm tags list <name>
+
+Subcommands:
+    add     Add tag(s) on a guest
+    remove  Remove tag(s) from a guest
+    list    List tags assigned to a guest
+    find    Show a list of guests with a given tag
 "
 
 #------------------------------------------------------------------------------

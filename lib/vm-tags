@@ -1,0 +1,94 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-FileCopyrightText: 2025 Koichiro Iwao (metalefty) <meta@FreeBSD.org>
+
+# Assign tags to specified virtual machine
+# @param string _name target virtual machine name
+# @param string _tags ...
+#
+tags::add(){
+    local _name _tags _tag
+
+    _name="$1"
+    shift
+    _tags="$@"
+
+    [ -z "${_name}" ] && help::show "tags"
+    [ -z "${_tags}" ] && help::show "tags"
+
+    for _tag in ${_tags}; do
+        util::check_name "${_tag}" || util::err "invalid tag name - '${_tag}'"
+    done
+
+    datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
+
+    sysrc -inqf "${VM_DS_PATH}/${_name}/${_name}.conf" tags+="${_tags}" >/dev/null 2>&1
+}
+
+# Remove tags from specified virtual machine
+# @param string _name target virtual machine name
+# @param string _tags ...
+#
+tags::remove(){
+    local _name _tags
+
+    _name="$1"
+    shift
+    _tags="$@"
+
+    [ -z "${_name}" ] && help::show "tags"
+    [ -z "${_tags}" ] && help::show "tags"
+
+    datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
+
+    sysrc -inqf "${VM_DS_PATH}/${_name}/${_name}.conf" tags-="${_tags}" >/dev/null 2>&1
+}
+
+# List tags assigned to target
+# @param string _name
+#
+tags::list(){
+    local _name
+
+    _name="$1"
+
+    [ -z "${_name}" ] && help::show "tags"
+
+    datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
+
+    sysrc -inqf "${VM_DS_PATH}/${_name}/${_name}.conf" tags
+}
+
+
+# Shows a list of VMs that have specified tag
+# @param string tag
+#
+tags::find(){
+    local _tag _result
+
+    _result=""
+    _tag="$1"
+    shift
+
+    [ -z "${_tag}" ] && help::show "tags"
+
+    for _ds in ${VM_DATASTORE_LIST}; do
+        datastore::get "${_ds}" || continue
+
+    exec 9<<EOF
+$(ls -1 "${VM_DS_PATH}" 2>/dev/null)
+EOF
+
+        while read _name; do
+            [ ! -e "${VM_DS_PATH}/${_name}/${_name}.conf" ] && continue
+
+            sysrc -inqf "${VM_DS_PATH}/${_name}/${_name}.conf" tags | grep -q -w "${_tag}"
+            if [ $? -eq 0 ]; then
+                _result="${_result} ${_name}"
+            fi
+        done <&9
+    done
+
+    echo $_result
+}
+

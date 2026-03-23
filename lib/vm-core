@@ -9,12 +9,13 @@ core::list(){
     local _running_only
     local _name _loader _cpu _our_host
     local _memory _run _vm _auto _num _vnc _pid
-    local _state _pcpu _rss _uptime
-    local _format="%s^%s^%s^%s^%s^%s^%s^%s\n"
+    local _state _pcpu _rss _uptime _tags _filter_tag
+    local _format="%s^%s^%s^%s^%s^%s^%s^%s^%s\n"
 
-    while getopts rv _opt ; do
+    while getopts rvt: _opt ; do
         case ${_opt} in
             r) _running_only='true' ;;
+            t) _filter_tag="${OPTARG}" ;;
             v) VM_OPT_VERBOSE="1" ;;
             *) help::show "list" ;;
         esac
@@ -24,14 +25,14 @@ core::list(){
 
     vm::running_load
 
-    [ -n "${VM_OPT_VERBOSE}" ] && _format="%s^%s^%s^%s^%s^%s^%s^%5s^%8s^%14s^%s\n";
+    [ -n "${VM_OPT_VERBOSE}" ] && _format="%s^%s^%s^%s^%s^%s^%s^%5s^%8s^%14s^%s^%s\n";
 
     # pass everything below here to column(1)
     {
         if [ -n "${VM_OPT_VERBOSE}" ]; then
-            printf "${_format}" "NAME" "DATASTORE" "LOADER" "CPU" "MEMORY" "VNC" "AUTO" "%CPU" "RSZ" "UPTIME" "STATE"
+            printf "${_format}" "NAME" "DATASTORE" "LOADER" "CPU" "MEMORY" "VNC" "AUTO" "%CPU" "RSZ" "UPTIME" "STATE" "TAGS"
         else
-            printf "${_format}" "NAME" "DATASTORE" "LOADER" "CPU" "MEMORY" "VNC" "AUTO" "STATE"
+            printf "${_format}" "NAME" "DATASTORE" "LOADER" "CPU" "MEMORY" "VNC" "AUTO" "STATE" "TAGS"
         fi
 
         for _ds in ${VM_DATASTORE_LIST}; do
@@ -45,6 +46,15 @@ core::list(){
                 config::get "_loader" "loader" "none"
                 config::get "_cpu" "cpu"
                 config::get "_memory" "memory"
+                config::get "_tags" "tags" "-"
+
+                # filter guests by tag if specified by -t option
+                if [ -n "${_filter_tag}" ]; then
+                    printf "%s\n" ${_tags} | grep -qx "${_filter_tag}" || continue
+                fi
+
+                # convert tags to comma-separated
+                _tags=$(echo ${_tags:--} | tr ' ' ',')
 
                 # defaults
                 _vnc="-"
@@ -100,9 +110,9 @@ core::list(){
                 fi
 
                 if [ -n "${VM_OPT_VERBOSE}" ]; then
-                    printf "${_format}" "${_name}" "${_ds}" "${_loader}" "${_cpu}" "${_memory}" "${_vnc}" "${_auto}" "${_pcpu}" "${_rss}" "${_uptime}" "${_run}"
+                    printf "${_format}" "${_name}" "${_ds}" "${_loader}" "${_cpu}" "${_memory}" "${_vnc}" "${_auto}" "${_pcpu}" "${_rss}" "${_uptime}" "${_run}" "${_tags}"
                 else
-                    printf "${_format}" "${_name}" "${_ds}" "${_loader}" "${_cpu}" "${_memory}" "${_vnc}" "${_auto}" "${_run}"
+                    printf "${_format}" "${_name}" "${_ds}" "${_loader}" "${_cpu}" "${_memory}" "${_vnc}" "${_auto}" "${_run}" "${_tags}"
                 fi
             done
         done
