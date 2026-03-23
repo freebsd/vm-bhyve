@@ -100,8 +100,15 @@ guest::load(){
                 util::log_and_write "write" "${_name}" "device.map" "(hd0) ${_bootdisk}"
                 guest::__map_all_disks
 
-                config::get "_grub_opt" "grub_run_partition"
-                [ -n "${_grub_opt}" ] && _root="hd0,${_grub_opt}"
+                # generate right grub.conf when the disk does not use any partition
+                # like some cloud images
+                config::get "_grub_opt" "grub_run_no_partition"
+                if [ -n "${_grub_opt}" ]; then
+                    _root="hd0"
+                else
+                    config::get "_grub_opt" "grub_run_partition"
+                    [ -n "${_grub_opt}" ] && _root="hd0,${_grub_opt}"
+                fi
 
                 # if we have local config, point grub-bhyve at it
                 # otherwise we use defaults, or directory and file specified by user
