@@ -7,7 +7,7 @@
 # @param string _tags ...
 #
 tags::add(){
-    local _name _tags
+    local _name _tags _tag
 
     _name="$1"
     shift
@@ -15,6 +15,10 @@ tags::add(){
 
     [ -z "${_name}" ] && help::show "tags"
     [ -z "${_tags}" ] && help::show "tags"
+
+    for _tag in ${_tags}; do
+        util::check_name "${_tag}" || util::err "invalid tag name - '${_tag}'"
+    done
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
