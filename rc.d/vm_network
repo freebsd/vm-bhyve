@@ -3,7 +3,7 @@
 # PROVIDE: vm_network
 # REQUIRE: bridge
 # BEFORE: dnsmasq ipfw pf
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 
