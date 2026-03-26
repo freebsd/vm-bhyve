@@ -13,7 +13,7 @@ name=vm_network
 desc="Setup switches for vm-bhyve"
 rcvar=vm_enable
 
-load_rc_config $name
+load_rc_config vm
 
 command="/usr/local/sbin/vm"
 start_cmd="${name}_start"
