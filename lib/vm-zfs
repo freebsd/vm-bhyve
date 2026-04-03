@@ -119,7 +119,6 @@ zfs::__format_options(){
 
     if [ -n "${_c_opts}" ]; then
         _c_opts=$(echo "${_c_opts}" | sed -E -e 's/^[ \t]+|[ \t]+$//g; s/[ \t]+/ -o /g; s/^/-o /')
-        _c_opts="-o ${_c_opts}"
         setvar "${_val}" "${_c_opts}"
         return 0
     fi
