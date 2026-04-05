@@ -26,14 +26,21 @@ util::setup(){
 
 # load a kernel module
 #
-# @param string _mod the module name
+# @param string _mod the module name or filename
+# @param string _kind lookup mode, "mod" for module name or "file" for filename
 #
 util::load_module(){
     local _mod="$1"
-    kldstat -qm ${_mod} >/dev/null 2>&1
+    local _kind="${2:-mod}"
+
+    if [ "${_kind}" = "file" ]; then
+        kldstat -qn ${_mod} >/dev/null 2>&1
+    else
+        kldstat -qm ${_mod} >/dev/null 2>&1
+    fi
     if [ $? -ne 0 ]; then
         kldload ${_mod} >/dev/null 2>&1
-        [ $? -eq 0 ] || util::err "unable to load ${_mod}.ko!"
+        [ $? -eq 0 ] || util::err "unable to load ${_mod}!"
     fi
 }
 
@@ -54,7 +61,7 @@ util::check_bhyve_support(){
     # we do this here to make sure the sysctls exist, and before disable_host_checks
     # as we want this loaded anyway. FreeBSD version check removed as the
     # module won't exist on systems too old for bhyve
-    util::load_module "vmm"
+    util::load_module "vmm.ko" "file"
 
     # don't check if user wants to bypass host checks
     util::yesno "$vm_disable_host_checks" && return 0
