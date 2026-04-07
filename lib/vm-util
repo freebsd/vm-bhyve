@@ -37,27 +37,66 @@ util::load_module(){
     fi
 }
 
+# load vmm kernel module
+#
+# `kldstat -n` calls kldstat(2), `kldstat -m` calls modstat(2).
+# the former checks if the module is loaded, the latter checks if
+# the module is initialized (ready to use).
+#
+# @return 0: success
+#         1: failure
+#         2: not supported
+util::load_vmm(){
+    # nothing to do if vmm module is already initialized
+    if kldstat -qm vmm; then
+        return 0
+    fi
+
+    # if loaded but not initialized, it means not supported
+    if kldstat -qn vmm; then
+        return 2
+    fi
+
+    # if not loaded, try to load
+    if kldload -q vmm; then
+        if kldstat -qm vmm; then
+            return 0
+        else
+            # loaded but failed to initialize: not supported
+            return 2
+        fi
+    else
+        # failed to load
+        return 1
+    fi
+}
+
 # check if system have bhyve support
-# look for sysctls set by the vmm module. I can't get confirmation that this
-# is a valid way to check vmm is working, even though it seems reasonable.
+#
+# vmm module seems to be working if modstat(2) succeeds
+#
 # the vm_disable_host_checks="yes" rc settings allows bypassing all this
 # if your system should be supported but these checks break.
 #
 # @modifies VM_NO_UG
 #
 util::check_bhyve_support(){
+    local _ret
 
     # almost all our functionality requires access to things only root can do
     [ `id -u` -ne 0 ] && util::err "virtual machines can only be managed by root"
 
-    # try to load the vmm module
-    # we do this here to make sure the sysctls exist, and before disable_host_checks
-    # as we want this loaded anyway. FreeBSD version check removed as the
-    # module won't exist on systems too old for bhyve
-    util::load_module "vmm"
-
     # don't check if user wants to bypass host checks
     util::yesno "$vm_disable_host_checks" && return 0
+
+    util::load_vmm
+    _ret=$?
+
+    case "${_ret}" in
+        0) ;; # success
+        1) util::err "unable to load vmm.ko!" ;;
+        2) util::err "virtualization is not supported or is disabled" ;;
+    esac
 
     # check sysctls
     # these only work for intel
