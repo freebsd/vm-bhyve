@@ -1,0 +1,29 @@
+name: FreeBSD
+
+on:
+  push:
+    branches-ignore:
+      - "v1.[0-4]-stable"
+  pull_request:
+    branches-ignore:
+      - "v1.[0-4]-stable"
+
+jobs:
+  lint_manpages:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout sources
+        uses: actions/checkout@v6
+
+      - name: lint manpages
+        uses: vmactions/freebsd-vm@v1
+        with:
+          prepare: |
+            pkg install -y tmux
+            # workaround: mandoc convers only base system
+            cp /usr/local/share/man/man1/tmux.1.gz /usr/share/man/man1/
+            makewhatis /usr/share/man
+
+          run: |
+            mandoc -Tlint ./vm.8
