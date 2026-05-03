@@ -419,7 +419,7 @@ zfs::image_provision(){
     # get the datastore to create on
     datastore::get "${_datastore}" || util::err "unable to locate datastore '${_datastore}'"
 
-    # try to recieve
+    # try to receive
     echo "Unpacking guest image, this may take some time..."
 
     # check format of image
@@ -433,7 +433,7 @@ zfs::image_provision(){
     esac
 
     # error unpacking?
-    [ $? -eq 0 ] || util::err "errors occured while trying to unpackage the image file"
+    [ $? -eq 0 ] || util::err "errors occurred while trying to unpackage the image file"
 
     # remove the original snapshot
     zfs destroy -r "${VM_DS_ZFS_DATASET}/${_name}@${_uuid%%-*}" >/dev/null 2>&1
