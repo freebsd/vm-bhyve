@@ -358,7 +358,7 @@ graphics_listen="10.0.0.1"
 
 # graphics_res
 # This allows you to specify a resolution for the graphical console.
-# Pleas note only the below options are supported
+# Please note only the below options are supported
 #
 # Default: 800x600
 # Valid Options: 1920x1200,1920x1080,1600x1200,1600x900,1280x1024,1280x720,1024x768,800x600,640x480
@@ -409,11 +409,11 @@ xhci_mouse="yes"
 # only supports virtio consoles configured in this way
 #
 # For guests with named console support (FreeBSD 12+, Linux?), the
-# value can be the name of the port to create. The name "org.freenas.byhve-agent"
+# value can be the name of the port to create. The name "org.freenas.bhyve-agent"
 # can be useful as it ties in with tools written to make use of the
 # FreeNAS bhyve-agent interface.
 #
-virt_console0="org.freenas.byhve-agent"
+virt_console0="org.freenas.bhyve-agent"
 
 # grub_install0
 # use this to specify grub commands that should be run inside the
@@ -443,7 +443,7 @@ grub_run_partition="msdos1"
 
 # grub_run_dir
 # by default grub-bhyve will look in /boot/grub for the guests
-# grub config file. use this to specify an alterate path
+# grub config file. use this to specify an alternate path
 #
 # Default: /boot/grub (set by grub-bhyve)
 #
