@@ -49,7 +49,7 @@ See the sections below for more in-depth details.
     12. vm console myguest
 
 - [ ] Line 1
-Install vm-bhvye
+Install vm-bhyve
 
 - [ ] Line 2
 Create a dataset for your virtual machines.
@@ -114,7 +114,7 @@ Or with ZFS:
 
 This directory will be referred to as $vm_dir in the rest of this readme.
 
-Now run the following command to create the directories used to store vm-bhvye configuration and
+Now run the following command to create the directories used to store vm-bhyve configuration and
 load any necessary kernel modules. This needs to be run once after each host reboot, which is
 normally handled by the rc.d script
 
