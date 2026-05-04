@@ -102,7 +102,7 @@ guest::load(){
 
                 # generate right grub.conf when the disk does not use any partition
                 # like some cloud images
-                if [ -n "${_grub_opt}" ]; then
+                if [ config::yesno "grub_run_no_partition" ]; then
                     _root="hd0"
                 else
                     config::get "_grub_opt" "grub_run_partition"
