@@ -1565,6 +1565,15 @@ Specify the partition that grub should look in for the grub configuration
 files.
 By default, vm-bhyve will specify partition 1, which is correct in most
 standard cases.
+.It grub_run_no_partition
+Set this option to boot from an unpartitioned disk, as commonly found with
+cloud images where the filesystem is written directly to the raw disk.
+When enabled, the GRUB root device is set to
+.Sy hd0
+instead of
+.Sy hd0,X .
+This option takes precedence over
+.Sy grub_run_partition .
 .It grub_runX
 The option allows you to specify the grub commands needed to boot the guest
 from disk.
