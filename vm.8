@@ -263,7 +263,7 @@ is installed, create the directory which will store your virtual machine
 configuration and data.
 This directory will be referred to as
 .Pa $vm_dir
-throughput this man page.
+throughout this man page.
 .Pp
 Add the following into
 .Pa /etc/rc.conf
@@ -459,7 +459,7 @@ can be used to retrieve all user configurable settings, or you can specify one
 or more settings by name, separated by a space.
 .It Cm set Ar setting=value
 Sets the value of a global configuration setting.
-Multiple settings can be changed at the same time by seperating the
+Multiple settings can be changed at the same time by separating the
 .Sy setting=value
 pairs with a space.
 .Pp
@@ -566,7 +566,7 @@ CIDR notation.
 .It Fl p
 Use this option to create a private switch.
 If this is enabled, no traffic will be allowed between guests on the same
-switch, however then will all be able to communicate with any physical
+switch, however they will all be able to communicate with any physical
 interfaces added to the switch.
 .El
 .It Cm switch vlan Ar name Ar vlan-id
@@ -604,7 +604,7 @@ daemon.
 If DHCP is desired, we recommend using a manual switch and configuring this by
 hand.
 .It Cm switch private Ar name Ar on|off
-Enable of disable private mode for a virtual switch.
+Enable or disable private mode for a virtual switch.
 In private mode, guests will only be able to communicate with the physical
 interface(s), not with each other.
 .Pp
@@ -759,7 +759,7 @@ If the
 .Ar -t
 option and a
 .Ar tag
-is speficied, only guests with the specified tag are listed.
+is specified, only guests with the specified tag are listed.
 .It Cm info Op Ar name Op Ar ...
 Shows detailed information about the specified virtual machine(s).
 If no names are given, information for all virtual machines is displayed.
@@ -825,7 +825,7 @@ subcommand to connect to it if required.
 For each network adapter specified in the guest configuration, a
 .Xr tap 4
 interface will be created.
-If possible, the tap interface will be attached the relevant
+If possible, the tap interface will be attached to the relevant
 .Xr bridge 4
 interface, based on the virtual switch specified in the guest configuration.
 .Pp
@@ -1010,7 +1010,7 @@ to give each guest a chance to fully boot before the next starts.
 Stop all running virtual machines.
 This sends a stop command to all
 .Xr bhyve 8
-instances, regardless of whether they were starting using or not.
+instances, regardless of whether they were started using vm or not.
 .Pp
 If the
 .Ar -f
@@ -1149,7 +1149,7 @@ This will take a full snapshot of the local guest and send it to the destination
 host.
 .It Fl 2
 Run only the second stage.
-This will second an incremental snapshot and then complete the migration.
+This will send an incremental snapshot and then complete the migration.
 This requires the
 .Fl i
 parameter to specify the source snapshot.
@@ -1770,7 +1770,7 @@ Set this option to
 .Sy yes
 in order to provide an XHCI mouse device to the guest.
 This tracks much better than the default PS2 mouse in VNC settings, although
-this mouse may not supported by older guests.
+this mouse may not be supported by older guests.
 .It sound
 Set this option to
 .Sy yes
@@ -1888,7 +1888,7 @@ updated manually.
 .Pp
 On some systems it has been observed that bridging can cause interfaces to go
 down for up to 10 seconds, which is enough to stall ssh sessions.
-This is noticable when the first guest is started or when the last guest is
+This is noticeable when the first guest is started or when the last guest is
 stopped.
 Once there are at least 2 interfaces bridged (one real interface and a tap
 interface), further guests can be started/stopped without issue.
