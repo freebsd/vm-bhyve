@@ -4,6 +4,7 @@
 
 # switch libraries
 #
+. "${LIB}/vm-switch-vlanfilter"
 . "${LIB}/vm-switch-netgraph"
 . "${LIB}/vm-switch-manual"
 . "${LIB}/vm-switch-standard"
@@ -26,11 +27,12 @@ switch::init(){
             config::core::get "_type" "type_${_switch}"
 
             case "${_type}" in
-                vxlan)    switch::vxlan::init "${_switch}" ;;
-                manual)   switch::manual::init "${_switch}" ;;
-                vale)     ;;
-                netgraph) ;;
-                *)        switch::standard::init "${_switch}" ;;
+                manual)     switch::manual::init "${_switch}" ;;
+                vale)       ;;
+                netgraph)   ;;
+                vlanfilter) switch::vlanfilter::init "${_switch}" ;;
+                vxlan)      switch::vxlan::init "${_switch}" ;;
+                *)          switch::standard::init "${_switch}" ;;
             esac
         done
     fi
@@ -53,11 +55,12 @@ switch::list(){
                 config::core::get "_type" "type_${_switch}"
 
                 case "${_type}" in
-                    netgraph) switch::netgraph::show "${_switch}" "${_format}" ;;
-                    vale)     switch::vale::show "${_switch}" "${_format}" ;;
-                    vxlan)    switch::vxlan::show "${_switch}" "${_format}" ;;
-                    manual)   switch::manual::show "${_switch}" "${_format}" ;;
-                    *)        switch::standard::show "${_switch}" "${_format}" ;;
+                    manual)     switch::manual::show "${_switch}" "${_format}" ;;
+                    netgraph)   switch::netgraph::show "${_switch}" "${_format}" ;;
+                    vale)       switch::vale::show "${_switch}" "${_format}" ;;
+                    vlanfilter) switch::vlanfilter::show "${_switch}" "${_format}" ;;
+                    vxlan)      switch::vxlan::show "${_switch}" "${_format}" ;;
+                    *)          switch::standard::show "${_switch}" "${_format}" ;;
                 esac
             done
         fi
@@ -122,12 +125,13 @@ switch::create(){
 
     # check switch type
     case "${_type}" in
-        standard) switch::standard::create ;;
-        manual)   switch::manual::create ;;
-        netgraph) switch::netgraph::create ;;
-        vale)     switch::vale::create ;;
-        vxlan)    switch::vxlan::create ;;
-        *)        util::err "invalid switch type - '${_type}'" ;;
+        standard)   switch::standard::create ;;
+        manual)     switch::manual::create ;;
+        netgraph)   switch::netgraph::create ;;
+        vale)       switch::vale::create ;;
+        vlanfilter) switch::vlanfilter::create ;;
+        vxlan)      switch::vxlan::create ;;
+        *)          util::err "invalid switch type - '${_type}'" ;;
     esac
 }
 
@@ -146,12 +150,13 @@ switch::remove(){
     config::core::get "_type" "type_${_switch}"
 
     case "${_type}" in
-        standard) switch::standard::remove "${_switch}" ;;
-        manual)   switch::manual::remove "${_switch}" ;;
-        netgraph) switch::netgraph::remove "${_switch}" ;;
-        vale)     switch::vale::remove "${_switch}" ;;
-        vxlan)    switch::vxlan::remove "${_switch}" ;;
-        *)        util::err "unable to remove switch of unknown type" ;;
+        standard)   switch::standard::remove "${_switch}" ;;
+        manual)     switch::manual::remove "${_switch}" ;;
+        netgraph)   switch::netgraph::remove "${_switch}" ;;
+        vale)       switch::vale::remove "${_switch}" ;;
+        vlanfilter) switch::vlanfilter::remove "${_switch}" ;;
+        vxlan)      switch::vxlan::remove "${_switch}" ;;
+        *)          util::err "unable to remove switch of unknown type" ;;
     esac
 
     # remove all configuration if there's no error
@@ -159,6 +164,7 @@ switch::remove(){
         config::core::remove "switch_list" "${_switch}"
         config::core::remove "ports_${_switch} vlan_${_switch} nat_${_switch} type_${_switch}"
         config::core::remove "addr_${_switch} addr6_${_switch} private_${_switch} mtu_${_switch}"
+        config::core::remove "vlanfilter_tagged_${_switch}" "vlanfilter_untagged_${_switch}"
     else
         util::err "failed to remove virtual switch"
     fi
@@ -184,12 +190,13 @@ switch::add_member(){
     config::core::get "_type" "type_${_switch}"
 
     case "${_type}" in
-        standard) switch::standard::add_member "${_switch}" "${_if}" ;;
-        manual)   switch::manual::add_member "${_switch}" "${_if}" ;;
-        netgraph) switch::netgraph::add_member "${_switch}" "${_if}" ;;
-        vale)     switch::vale::add_member "${_switch}" "${_if}" ;;
-        vxlan)    switch::vxlan::add_member "${_switch}" "${_if}" ;;
-        *)        util::err "unable to configure switch of unknown type" ;;
+        standard)   switch::standard::add_member "${_switch}" "${_if}" ;;
+        manual)     switch::manual::add_member "${_switch}" "${_if}" ;;
+        netgraph)   switch::netgraph::add_member "${_switch}" "${_if}" ;;
+        vale)       switch::vale::add_member "${_switch}" "${_if}" ;;
+        vlanfilter) switch::vlanfilter::add_member "${_switch}" "${_if}" ;;
+        vxlan)      switch::vxlan::add_member "${_switch}" "${_if}" ;;
+        *)          util::err "unable to configure switch of unknown type" ;;
     esac
 }
 
@@ -266,7 +273,7 @@ switch::private(){
     switch::type "_type" "${_switch}" || util::err "specified switch does not appear to be valid"
 
     case "${_type}" in
-        standard|manual|vxlan)
+        standard|vlanfilter|manual|vxlan)
             if util::yesno "${_priv}"; then
                 config::core::set "private_${_switch}" "yes"
             else
@@ -301,12 +308,23 @@ switch::nat(){
 # @param string _addr the ip address to add (or "none" to remove
 #
 switch::address(){
-    local _switch="$1"
-    local _addr="$2"
-    local _delete="$3"
+    local _switch _addr _delete
     local _id _type
 
-    [ -z "${_switch}" ] && util::usage
+    # process options
+    while getopts n: _opt; do
+        case ${_opt} in
+            n) _vlan="${OPTARG}" ;;
+            *) help::show "switch" ;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
+    _switch="$1"
+    _addr="$2"
+    _delete="$3"
+
+    [ -z "${_switch}" ] && help::show "switch"
 
     switch::id "_id" "${_switch}"
     switch::type "_type" "${_switch}"
@@ -319,12 +337,13 @@ switch::address(){
     fi
 
     case "${_type}" in
-        standard) switch::standard::address "${_switch}" "${_addr}" "${_delete}";;
-        manual)   ;&
-        netgraph) ;&
-        vale)     ;&
-        vxlan)    util::err "feature not currently supported on switches of this type" ;;
-        *)        util::err "unable to configure switch of unknown type" ;;
+        standard)   switch::standard::address "${_switch}" "${_addr}" "${_delete}" ;;
+        manual)     ;&
+        netgraph)   ;&
+        vale)       ;&
+        vlanfilter) switch::vlanfilter::address "${_switch}" "${_vlan}" "${_addr}" "${_delete}" ;;
+        vxlan)      util::err "feature not currently supported on switches of this type" ;;
+        *)          util::err "unable to configure switch of unknown type" ;;
     esac
 }
 
@@ -436,11 +455,12 @@ switch::provision(){
     switch::type "_type" "${_switch}"
 
     case "${_type}" in
-        vale)     switch::vale::provision ;;
-        netgraph) switch::netgraph::provision ;;
-        standard) ;&
-        manual)   ;&
-        vxlan)    switch::standard::provision ;;
-        *)        util::warn "unable to configure interface ${_num}" ;;
+        vale)       switch::vale::provision ;;
+        netgraph)   switch::netgraph::provision ;;
+        vlanfilter) switch::vlanfilter::provision ;;
+        standard)   ;&
+        manual)     ;&
+        vxlan)      switch::standard::provision ;;
+        *)          util::warn "unable to configure interface ${_num}" ;;
     esac
 }

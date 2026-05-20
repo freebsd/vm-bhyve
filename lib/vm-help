@@ -61,13 +61,16 @@ Usage:
     vm switch destroy <name>
 
 Options (create):
-    -t <type>       Switch type: standard|manual|netgraph|vale|vxlan
+    -t <type>       Switch type: standard|manual|netgraph|vale|vlanfilter|vxlan
     -n <vlan-id>    VLAN ID for standard and vxlan switches
     -i <interface>  Interface to attach to the switch
     -m <size>       MTU size of the switch
     -a <address>    IP address (CIDR notation) assigned to bridge interface
     -b <bridge>     Specify an existing bridge when creating a manual switch
     -p              Create a private switch
+
+Options (address):
+    -n <vlan-id>    VLAN ID to configure IP address on (required for vlanfilter)
 "
 
 #------------------------------------------------------------------------------
