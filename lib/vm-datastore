@@ -448,8 +448,8 @@ datastore::iso_list(){
 
     # look for default iso location
     [ -d "${vm_dir}/.iso" ] && \
-        find "${vm_dir}/.iso" -type f -maxdepth 1 -printf "%f\n" | \
-        awk '{printf "'${_format}'","default",$1}'
+        find "${vm_dir}/.iso" -type f -maxdepth 1 | \
+        awk -F '/' '{printf "'${_format}'","default",$NF}'
 
     # look for iso datastores
     for _ds in ${VM_DATASTORE_LIST}; do
@@ -457,9 +457,8 @@ datastore::iso_list(){
         [ "${_spec%%:*}" != "iso" ] && continue
 
         [ -d "${_spec#*:}" ] && \
-            ls -1 ${_spec#*:} | \
-            find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
-            awk '{printf "'${_format}'","'${_ds}'",$1}'
+            find ${_spec#*:} -type f -maxdepth 1 | \
+            awk -F '/' '{printf "'${_format}'","'${_ds}'",$NF}'
     done
 }
 
@@ -472,8 +471,8 @@ datastore::img_list(){
 
     # look for default img location
     [ -d "${vm_dir}/.img" ] && \
-        find "${vm_dir}/.img" -type f -maxdepth 1 -printf "%f\n" | \
-        awk '{printf "'${_format}'","default",$1}'
+        find "${vm_dir}/.img" -type f -maxdepth 1 | \
+        awk -F '/' '{printf "'${_format}'","default",$NF}'
 
     # look for img datastores
     for _ds in ${VM_DATASTORE_LIST}; do
@@ -481,7 +480,7 @@ datastore::img_list(){
         [ "${_spec%%:*}" != "img" ] && continue
 
         [ -d "${_spec#*:}" ] && \
-            find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
-            awk '{printf "'${_format}'","'${_ds}'",$1}'
+            find ${_spec#*:} -type f -maxdepth 1 | \
+            awk -F '/' '{printf "'${_format}'","'${_ds}'",$NF}'
     done
 }
