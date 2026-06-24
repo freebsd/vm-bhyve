@@ -468,7 +468,7 @@ datastore::img_list(){
     # list "default" datastore
     datastore::__list_files "default" "${vm_dir}/.img" "${_format}"
 
-    # list all configured iso datastores
+    # list all configured img datastores
     for _ds in ${VM_DATASTORE_LIST}; do
         config::core::get "_spec" "path_${_ds}"
         [ "${_spec%%:*}" = "img" ] || continue
