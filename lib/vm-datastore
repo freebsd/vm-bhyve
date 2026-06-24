@@ -446,20 +446,33 @@ datastore::iso_list(){
 
     printf "${_format}" "DATASTORE" "FILENAME"
 
-    # look for default iso location
-    [ -d "${vm_dir}/.iso" ] && \
-        find "${vm_dir}/.iso" -type f -maxdepth 1 | \
-        awk -F '/' '{printf "'${_format}'","default",$NF}'
+    if [ "${VERSION_BSD#14}" != "${VERSION_BSD}" ]; then
+        [ -d "${vm_dir}/.iso" ] && \
+            find "${vm_dir}/.iso" -type f -maxdepth 1 | \
+            awk -F '/' '{printf "'${_format}'","default",$NF}'
 
-    # look for iso datastores
-    for _ds in ${VM_DATASTORE_LIST}; do
-        config::core::get "_spec" "path_${_ds}"
-        [ "${_spec%%:*}" != "iso" ] && continue
+        for _ds in ${VM_DATASTORE_LIST}; do
+            config::core::get "_spec" "path_${_ds}"
+            [ "${_spec%%:*}" != "iso" ] && continue
 
-        [ -d "${_spec#*:}" ] && \
-            find ${_spec#*:} -type f -maxdepth 1 | \
-            awk -F '/' '{printf "'${_format}'","'${_ds}'",$NF}'
-    done
+            [ -d "${_spec#*:}" ] && \
+                find ${_spec#*:} -type f -maxdepth 1 | \
+                awk -F '/' '{printf "'${_format}'","'${_ds}'",$NF}'
+        done
+    else
+        [ -d "${vm_dir}/.iso" ] && \
+            find "${vm_dir}/.iso" -type f -maxdepth 1 -printf "%f\n" | \
+            awk '{printf "'${_format}'","default",$1}'
+
+        for _ds in ${VM_DATASTORE_LIST}; do
+            config::core::get "_spec" "path_${_ds}"
+            [ "${_spec%%:*}" != "iso" ] && continue
+
+            [ -d "${_spec#*:}" ] && \
+                find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
+                awk '{printf "'${_format}'","'${_ds}'",$1}'
+        done
+    fi
 }
 
 # list img files
@@ -469,18 +482,31 @@ datastore::img_list(){
 
     printf "${_format}" "DATASTORE" "FILENAME"
 
-    # look for default img location
-    [ -d "${vm_dir}/.img" ] && \
-        find "${vm_dir}/.img" -type f -maxdepth 1 | \
-        awk -F '/' '{printf "'${_format}'","default",$NF}'
+    if [ "${VERSION_BSD#14}" != "${VERSION_BSD}" ]; then
+        [ -d "${vm_dir}/.img" ] && \
+            find "${vm_dir}/.img" -type f -maxdepth 1 | \
+            awk -F '/' '{printf "'${_format}'","default",$NF}'
 
-    # look for img datastores
-    for _ds in ${VM_DATASTORE_LIST}; do
-        config::core::get "_spec" "path_${_ds}"
-        [ "${_spec%%:*}" != "img" ] && continue
+        for _ds in ${VM_DATASTORE_LIST}; do
+            config::core::get "_spec" "path_${_ds}"
+            [ "${_spec%%:*}" != "img" ] && continue
 
-        [ -d "${_spec#*:}" ] && \
-            find ${_spec#*:} -type f -maxdepth 1 | \
-            awk -F '/' '{printf "'${_format}'","'${_ds}'",$NF}'
-    done
+            [ -d "${_spec#*:}" ] && \
+                find ${_spec#*:} -type f -maxdepth 1 | \
+                awk -F '/' '{printf "'${_format}'","'${_ds}'",$NF}'
+        done
+    else
+        [ -d "${vm_dir}/.img" ] && \
+            find "${vm_dir}/.img" -type f -maxdepth 1 -printf "%f\n" | \
+            awk '{printf "'${_format}'","default",$1}'
+
+        for _ds in ${VM_DATASTORE_LIST}; do
+            config::core::get "_spec" "path_${_ds}"
+            [ "${_spec%%:*}" != "img" ] && continue
+
+            [ -d "${_spec#*:}" ] && \
+                find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
+                awk '{printf "'${_format}'","'${_ds}'",$1}'
+        done
+    fi
 }
