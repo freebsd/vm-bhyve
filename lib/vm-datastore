@@ -452,7 +452,7 @@ datastore::iso_list(){
     # list all configured iso datastores
     for _ds in ${VM_DATASTORE_LIST}; do
         config::core::get "_spec" "path_${_ds}"
-        [ "${_spec%%:*}" = "iso" ] || continue
+        [ "${_spec%%:*}" != "iso" ] && continue
 
         datastore::__list_files "${_ds}" "${_spec#*:}" "${_format}"
     done
@@ -471,7 +471,7 @@ datastore::img_list(){
     # list all configured img datastores
     for _ds in ${VM_DATASTORE_LIST}; do
         config::core::get "_spec" "path_${_ds}"
-        [ "${_spec%%:*}" = "img" ] || continue
+        [ "${_spec%%:*}" != "img" ] && continue
 
         datastore::__list_files "${_ds}" "${_spec#*:}" "${_format}"
     done
