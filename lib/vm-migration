@@ -36,7 +36,7 @@ migration::run(){
     _host="$2"
 
     # do we want to output our config?
-    # sender uses the config option to pull config from the recieve end
+    # sender uses the config option to pull config from the receive end
     if [ -n "${_config}" ]; then
         migration::__check_config "${_ds}"
         exit
