@@ -282,6 +282,9 @@ vm::run(){
     fi
     [ -e "/dev/vmm/${_name}" ] && bhyvectl --destroy --vm=${_name} >/dev/null 2>&1
 
+    # run any post-stop script now that guest is fully down again
+    vm:poststop
+
     vm::unlock
     exit ${_exit}
 }
@@ -870,6 +873,27 @@ vm::prestart(){
     [ ! -x "${_script}" ] && return 1
 
     util::log "guest" "${_name}" "running prestart script ${_script} ${_name} ${VM_DS_ZFS_DATASET}/${_name}"
+
+    (
+      cd "${VM_DS_PATH}/${_name}"
+      exec "${_script}" "${_name}" "${VM_DS_ZFS_DATASET}/${_name}"
+    )
+}
+
+# looks for a poststop setting and runs it if possible
+# this will execute after each shutdown
+#
+# script is given the guest name and full path as arguments
+#
+vm::poststop(){
+    local _script
+
+    config::get "_script" "poststop" || return 0
+    echo "${_script}" | grep -qs '^/'
+    [ $? -ne 0 ] && _script="${VM_DS_PATH}/${_name}/${_script}"
+    [ ! -x "${_script}" ] && return 1
+
+    util::log "guest" "${_name}" "running poststop script ${_script} ${_name} ${VM_DS_ZFS_DATASET}/${_name}"
 
     (
       cd "${VM_DS_PATH}/${_name}"
