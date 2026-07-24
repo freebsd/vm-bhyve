@@ -13,7 +13,7 @@ switch::netgraph::show(){
     local _id
 
     switch::netgraph::id "_id" "${_name}"
-    printf "${_format}" "${_name}" "netraph" "${_id}" "n/a" "n/a" "n/a" "n/a" "n/a"
+    printf "${_format}" "${_name}" "netgraph" "${_id}" "n/a" "n/a" "n/a" "n/a" "n/a"
 }
 
 # create a netgraph switch
