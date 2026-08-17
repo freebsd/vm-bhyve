@@ -32,7 +32,7 @@ Main development happens in the master branch on GitHub and it may contain broke
 
 ## Quick-Start
 
-A simple overview of the commands needed to install vm-bhyve and start a freebsd guest.
+A simple overview of the commands needed to install vm-bhyve and start a FreeBSD guest.
 See the sections below for more in-depth details.
 
     1. pkg install vm-bhyve
