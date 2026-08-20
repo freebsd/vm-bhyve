@@ -134,7 +134,7 @@ Usage:
 
 Options:
     -d <datastore>  Datastore
-    -f <template>   Template
+    -t <template>   Template
     -s <size>       Disk size (e.g., 20G, 1T)
     -c <number>     Number of guest virtual CPUs
     -m <size>       Size of guest physical memory (e.g., 256M, 16G, 1T)
