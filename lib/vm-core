@@ -121,6 +121,9 @@ core::create(){
     local _zfs_opts _disk_size _template="default" _ds="default" _ds_path _img _cpu _memory _uuid
     local _enable_cloud_init _cloud_init_dir _ssh_public_keys _ssh_public_key _ssh_key_file _network_config _mac
     local _user_data_file
+    local _network_config_interface _network_config_ipaddress _network_config_gateway4 \
+          _network_config_gateway6 _network_config_nameservers _network_config_searchdomains \
+          _network_config_hostname
 
     while getopts d:t:s:i:c:m:Ck:n:u: _opt ; do
         case $_opt in
@@ -181,8 +184,11 @@ core::create(){
     fi
 
     # validate network config for cloud-init
+    # this is parsed here, before anything is created, so that a bad
+    # netconfig string fails without leaving a half-created guest behind
     if [ -n "${_network_config}" ]; then
       [ -z "${_enable_cloud_init}" ] && util::err "cloud-init is required for network config. Use -C to enable it."
+      core::parse_netconfig "${_network_config}"
     fi
 
     # if we're on zfs, make a new filesystem
@@ -254,9 +260,6 @@ core::create(){
 
 core::create_cloud_init(){
     local _cloud_init_dir _hostname
-    local _network_config_interface _network_config_ipaddress _network_config_gateway4 \
-          _network_config_gateway6 _network_config_nameservers _network_config_searchdomains \
-          _network_config_hostname
 
     # create disk with metadata for cloud-init
     _cloud_init_dir="${VM_DS_PATH}/${_name}/.cloud-init"
@@ -266,7 +269,6 @@ core::create_cloud_init(){
     mkdir -p "${_cloud_init_dir}"
 
     if [ -n "${_network_config}" ]; then
-        core::parse_netconfig "${_network_config}"
         core::compile_network_config > "${_cloud_init_dir}/network-config"
 
         # Override default hostname when network config is passed to cloud-init
@@ -314,25 +316,34 @@ EOF
 # @param string netconfig
 #
 core::parse_netconfig(){
-    local _network_config
+    local _network_config _pair _key _value
+    local IFS=';'
 
     _network_config="$1"
 
-    _network_config_interface="$(echo "${_network_config}" | \
-        grep -oE 'interface=[^;]*' | sed 's/^interface=//')";
-    _network_config_ipaddress="$(echo "${_network_config}" | \
-        grep -oE 'ip=[^;]*' | sed 's/^ip=//')"
-    _network_config_gateway4="$(echo "${_network_config}" | \
-        grep -oE 'gateway4=[^;]*' | sed 's/^gateway4=//')"
-    _network_config_gateway6="$(echo "${_network_config}" | \
-        grep -oE 'gateway6=[^;]*' | sed 's/^gateway6=//')"
-    _network_config_nameservers="$(echo "${_network_config}" | \
-        grep -oE 'nameservers=[^;]*' | sed 's/^nameservers=//')"
-    _network_config_searchdomains="$(echo "${_network_config}" | \
-        grep -oE 'searchdomains=[^;]*' | sed 's/^searchdomains=//')"
-    _network_config_hostname="$(echo "${_network_config}" | \
-        grep -oE 'hostname=[^;]*' | sed 's/^hostname=//')"
+    for _pair in ${_network_config}; do
+        # ignore empty fields, so trailing/repeated ';' are not an error
+        [ -z "${_pair}" ] && continue
 
+        case "${_pair}" in
+            *=*) ;;
+            *)   util::err "invalid netconfig entry - '${_pair}'" ;;
+        esac
+
+        _key="${_pair%%=*}"
+        _value="${_pair#*=}"
+
+        case "${_key}" in
+            interface)     _network_config_interface="${_value}" ;;
+            ip)            _network_config_ipaddress="${_value}" ;;
+            gateway4)      _network_config_gateway4="${_value}" ;;
+            gateway6)      _network_config_gateway6="${_value}" ;;
+            nameservers)   _network_config_nameservers="${_value}" ;;
+            searchdomains) _network_config_searchdomains="${_value}" ;;
+            hostname)      _network_config_hostname="${_value}" ;;
+            *)             util::err "invalid netconfig option - '${_key}'" ;;
+        esac
+    done
 }
 
 # compile cloud-init network-config
@@ -340,7 +351,7 @@ core::parse_netconfig(){
 # @private
 #
 core::compile_network_config(){
-    local _addr _ipv4_found ipv6_found
+    local _addr _ipv4_found _ipv6_found
     local _tmpfile=$(mktemp)
 
     cat << EOF >> "${_tmpfile}"
@@ -384,15 +395,15 @@ EOF
     fi
 
     # nameservers & searchdomains
-    if [ -n "${_network_config_serachdomains}" -o -n "${_network_config_nameservers}" ]; then
+    if [ -n "${_network_config_searchdomains}" -o -n "${_network_config_nameservers}" ]; then
         echo "    nameservers:" >> ${_tmpfile}
 
         if [ -n "${_network_config_nameservers}" ]; then
             echo "      addresses: [${_network_config_nameservers}]" >> ${_tmpfile}
         fi
 
-        if [ -n "${_searchdomains}" ]; then
-            echo "      search: [${_searchdomains}]" >> ${_tmpfile}
+        if [ -n "${_network_config_searchdomains}" ]; then
+            echo "      search: [${_network_config_searchdomains}]" >> ${_tmpfile}
         fi
     fi
 
