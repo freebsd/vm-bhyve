@@ -377,6 +377,12 @@ vm::lock(){
 # @param string - the name of the guest to unlock
 #
 vm::unlock(){
+    local _vnc_sock
+
+    # cleanup vnc socket file
+    _vnc_sock=$(grep -oE '^vnc=[^[:space:]]+' "${VM_DS_PATH}/${_name}/console" | cut -d'=' -f2)
+    [ -S "${_vnc_sock}" ] && unlink "${_vnc_sock}" >/dev/null 2>&1
+
     unlink "${VM_DS_PATH}/${_name}/run.lock" >/dev/null 2>&1
     unlink "${VM_DS_PATH}/${_name}/suspending.lock" >/dev/null 2>&1
     unlink "${VM_DS_PATH}/${_name}/console" >/dev/null 2>&1
@@ -630,7 +636,7 @@ vm::bhyve_device_rand(){
 #
 vm::bhyve_device_fbuf(){
     local _port _listen _res _pass _vga _wait
-    local _fbuf_conf
+    local _fbuf_conf _console_vnc
 
     # only works in uefi mode
     [ -z "${_uefi}" ] && return 0
@@ -649,28 +655,57 @@ vm::bhyve_device_fbuf(){
     # auto will count as yes so we need to unset it if we're not in an install.
     [ "${_wait}" = "auto" -a -z "${_iso}" ] && _wait="no"
 
-    # try to get port
-    # return if we can't
-    if [ -z "${_port}" ]; then
-        vm::find_available_net_port "_port" "5900"
 
-        if [ -z "${_port}" ]; then
-            util::log "guest" "${_name}" "warning; unable to allocate a network port for graphics/vnc"
-            return 1
-        fi
+    # configure framebuffer device
+    case "${_listen}" in
+        unix*)
+            if [ "${VERSION_BSD}" -lt 1501000 ]; then
+                util::log "guest" "${_name}" "warning: RFB via unix domain socket requires 15.1-RELEASE or later, ignoring..."
+                return 1
+            fi
+        ;;
+    esac
 
-        util::log "guest" "${_name}" "dynamically allocated port ${_port} for vnc connections"
-    fi
+    case "${_listen}" in
+        unix:/*) # listen UDS: full path
+            _fbuf_conf="rfb=${_listen}"
+            _console_vnc="vnc=${_fbuf_conf#rfb=*:}"
+            ;;
+        unix:*) # listen UDS: relative path under vm directory
+            _fbuf_conf="rfb=unix:${VM_DS_PATH}/${_name}/${_listen#*:}"
+            _console_vnc="vnc=${_fbuf_conf#rfb=*:}"
+            ;;
+        unix) # listen UDS: default path
+            _fbuf_conf="rfb=unix:${VM_DS_PATH}/${_name}/rfb.sock"
+            _console_vnc="vnc=${_fbuf_conf#rfb=unix:}"
+            ;;
+        *) # listen tcp port
+            # try to get port
+            # return if we can't
+            if [ -z "${_port}" ]; then
+                vm::find_available_net_port "_port" "5900"
 
-    # add ip, port, resolution, wait
-    _fbuf_conf="tcp=${_listen:-0.0.0.0}:${_port}"
+                if [ -z "${_port}" ]; then
+                    util::log "guest" "${_name}" "warning; unable to allocate a network port for graphics/vnc"
+                    return 1
+                fi
+
+                util::log "guest" "${_name}" "dynamically allocated port ${_port} for vnc connections"
+            fi
+
+            _fbuf_conf="rfb=${_listen:-0.0.0.0}:${_port}"
+            _console_vnc="vnc=${_listen:-0.0.0.0}:${_port}"
+            ;;
+    esac
+
+    # add resolution, vga, password, wait
     [ -n "${_res}" ] && _fbuf_conf="${_fbuf_conf},w=${_res%%x*},h=${_res##*x}"
     [ -n "${_vga}" ] && _fbuf_conf="${_fbuf_conf},vga=${_vga}"
     [ -n "${_pass}" ] && _fbuf_conf="${_fbuf_conf},password=${_pass}"
     util::yesno "${_wait}" && _fbuf_conf="${_fbuf_conf},wait"
 
     # write vnc port to console data
-    echo "vnc=${_listen:-0.0.0.0}:${_port}" >> "${VM_DS_PATH}/${_name}/console"
+    echo "${_console_vnc}" >> "${VM_DS_PATH}/${_name}/console"
 
     # add device
     _devices="${_devices} -s ${_bus}:${_slot}:0,fbuf,${_fbuf_conf}"
