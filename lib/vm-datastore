@@ -446,20 +446,15 @@ datastore::iso_list(){
 
     printf "${_format}" "DATASTORE" "FILENAME"
 
-    # look for default iso location
-    [ -d "${vm_dir}/.iso" ] && \
-        find "${vm_dir}/.iso" -type f -maxdepth 1 -printf "%f\n" | \
-        awk '{printf "'${_format}'","default",$1}'
+    # list "default" datastore
+    datastore::__list_files "default" "${vm_dir}/.iso" "${_format}"
 
-    # look for iso datastores
+    # list all configured iso datastores
     for _ds in ${VM_DATASTORE_LIST}; do
         config::core::get "_spec" "path_${_ds}"
         [ "${_spec%%:*}" != "iso" ] && continue
 
-        [ -d "${_spec#*:}" ] && \
-            ls -1 ${_spec#*:} | \
-            find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
-            awk '{printf "'${_format}'","'${_ds}'",$1}'
+        datastore::__list_files "${_ds}" "${_spec#*:}" "${_format}"
     done
 }
 
@@ -470,18 +465,36 @@ datastore::img_list(){
 
     printf "${_format}" "DATASTORE" "FILENAME"
 
-    # look for default img location
-    [ -d "${vm_dir}/.img" ] && \
-        find "${vm_dir}/.img" -type f -maxdepth 1 -printf "%f\n" | \
-        awk '{printf "'${_format}'","default",$1}'
+    # list "default" datastore
+    datastore::__list_files "default" "${vm_dir}/.img" "${_format}"
 
-    # look for img datastores
+    # list all configured img datastores
     for _ds in ${VM_DATASTORE_LIST}; do
         config::core::get "_spec" "path_${_ds}"
         [ "${_spec%%:*}" != "img" ] && continue
 
-        [ -d "${_spec#*:}" ] && \
-            find ${_spec#*:} -type f -maxdepth 1 -printf "%f\n" | \
-            awk '{printf "'${_format}'","'${_ds}'",$1}'
+        datastore::__list_files "${_ds}" "${_spec#*:}" "${_format}"
     done
+
+}
+
+# print each file in a directory prefixed with its datastore name
+# @param string _name   datastore name to display
+# @param string _dir    directory to scan
+# @param string _format printf format string
+#
+datastore::__list_files(){
+    local _name="$1" _dir="$2" _format="$3" _file
+
+    [ -d "${_dir}" ] || return 0
+
+    if [ "${VERSION_BSD#14}" != "${VERSION_BSD}" ]; then
+        find "${_dir}" -maxdepth 1 -type f | while read -r _file; do
+            printf "${_format}" "${_name}" "${_file##*/}"
+        done
+    else
+        find "${_dir}" -maxdepth 1 -type f -printf "%f\n" | while read -r _file; do
+            printf "${_format}" "${_name}" "${_file}"
+        done
+    fi
 }
