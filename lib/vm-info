@@ -463,19 +463,22 @@ info::__find_iscsi() {
     [ "${_lun}" = "${_target}" ] && _lun=0
     _target=${_target%/*}
 
-    _found=$(iscsictl -L -w 10 | grep ${_target} | wc -l)
-    if [ "${_found}" -ne 1 ]; then
+    # Set _col to be the column of iscsictl -L we want
+    _col=$((_lun + 4))
+
+    # Check first with trailing space for a unique case; if this returns no results,
+    # recheck (backward compat) without trailing space.
+    _found=$(iscsictl -L -w 10 | awk "/${_target} /{print \$${_col}}")
+    [ -z "_found" ] && _found=$(iscsictl -L | awk "/${_target}/{print \$${_col}}")
+
+    if [ $(echo "${_found}" | wc -w) -ne 1 ]; then
         setvar "${_var}" ""
-        util::err "Unable to locate unique iSCSI device ${_target}"
+        util::err "Unable to locate unique iSCSI device [${_target}]"
     fi
 
-    # _col to be the column of iscsictl -L we want
-    _col=$((_lun + 4))
-    _found=$(iscsictl -L | awk "/${_target}/{print \$${_col}}")
     if echo "${_found}" | egrep -q '^da[0-9]+$'; then
         setvar "${_var}" /dev/"${_found}"
         return 0
     fi
-
     util::err "Unable to locate iSCSI device ${_target}/${_lun}"
 }
