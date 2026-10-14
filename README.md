@@ -340,6 +340,22 @@ Restart your vm.
 
 Please see the Windows section in the [Wiki](https://github.com/freebsd/vm-bhyve/wiki/Running-Windows)
 
+## arm64 Support
+
+Guests can be run on arm64 hosts. An arm64 guest always boots from a boot ROM,
+which on this platform is the U-Boot image from the `u-boot-bhyve-arm64`
+package, so guests need `loader="uboot"`. The `freebsd-arm64.conf` sample
+template is a suitable starting point.
+
+    pkg install u-boot-bhyve-arm64
+    vm create -t freebsd-arm64 myguest
+
+The `bhyveload`, `grub` and `uefi` loaders have no arm64 equivalent and are
+rejected on these hosts. `bhyve` also provides a single console device rather
+than a pair of com ports, so only the first entry in `comports` is used, and
+`utctime` has no effect. A graphical console, sound and PCI passthrough are
+untested on arm64.
+
 ## Autocomplete
 
 If you are using the default csh/tcsh shell built into FreeBSD, running the following command should allow
