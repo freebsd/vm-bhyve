@@ -350,6 +350,12 @@ template is a suitable starting point.
     pkg install u-boot-bhyve-arm64
     vm create -t freebsd-arm64 myguest
 
+Linux guests work as well, using the `linux-arm64.conf` template. U-Boot looks
+for `/efi/boot/bootaa64.efi` on the first virtio-blk device, which is the
+removable media path distribution cloud images already carry, so writing such an
+image into `disk0` is enough to boot it. A Debian 13 arm64 cloud image boots
+this way without any guest-side changes.
+
 The `bhyveload`, `grub` and `uefi` loaders have no arm64 equivalent and are
 rejected on these hosts. `bhyve` also provides a single console device rather
 than a pair of com ports, so only the first entry in `comports` is used, and
