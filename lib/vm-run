@@ -13,7 +13,7 @@
 vm::run(){
     local _name _iso _iso_dev
     local _cpu _memory _bootdisk _bootdisk_dev _guest _wiredmem
-    local _guest_support _uefi _uuid _debug _hostbridge _fwcfg _loader
+    local _guest_support _uefi _firmware _uuid _debug _hostbridge _fwcfg _loader
     local _opts _devices _slot _bus=0 _maxslots=31 _install_slot _func=0 _taplist _exit _passdev
     local _com _comports _comstring _logpath="/dev/null" _run=1
     local _bhyve_options _action
@@ -156,8 +156,9 @@ vm::run(){
         # destroy existing vmm
         # freebsd seems happy to run a bhyveload/bhyve loop
         # grub-bhyve doesn't seem to like it for a lot of users
-        # Peter says don't destroy in Windows instructions, so don't if in UEFI mode
-        if [ -e "/dev/vmm/${_name}" -a -z "${_uefi}" ]; then
+        # Peter says don't destroy in Windows instructions, so don't when the
+        # guest boots from a boot ROM
+        if [ -e "/dev/vmm/${_name}" -a -z "${_firmware}" ]; then
             bhyvectl --vm="${_name}" --destroy >/dev/null 2>&1
             if [ $? -ne 0 ]; then
                 util::log "guest" "${_name}" "fatal; failed to destroy existing vmm device"
@@ -188,7 +189,7 @@ vm::run(){
         [ "${_run}" -eq "2" ] && vm::bhyve_device_fbuf_clear_wait
 
         # load guest
-        if [ -z "${_uefi}" ]; then
+        if [ -z "${_firmware}" ]; then
 
             guest::load "${_iso}"
             _exit=$?
@@ -288,7 +289,7 @@ vm::run(){
 
 # creates options to use a uefi bootrom
 #
-# @modifies _opts _uefi
+# @modifies _opts _uefi _firmware
 #
 vm::uefi(){
     local _bootrom
@@ -332,6 +333,7 @@ vm::uefi(){
 
     _opts="${_opts} -l bootrom,${_bootrom}"
     _uefi="yes"
+    _firmware="yes"
 }
 
 # decide how to handle bhyve exit code
@@ -536,7 +538,7 @@ vm::bhyve_device_disks(){
 
         # have we just added a device?
         if [ -n "${_add}" ]; then
-            if [ -n "${_uefi}" ]; then
+            if [ -n "${_firmware}" ]; then
                 _slot=$((_slot + 1))
 
             else
@@ -558,12 +560,12 @@ vm::bhyve_device_disks(){
     # have ahci devices left?
     if [ -n "${_ahci}" ]; then
         _devices="${_devices} -s ${_slot}:${_func},ahci${_ahci}"
-        [ -n "${_uefi}" ] && _slot=$((_slot + 1))
+        [ -n "${_firmware}" ] && _slot=$((_slot + 1))
     fi
 
     # move to next slot if we have devices
-    # unless uefi as we already inc slot in uefi mode
-    if [ ${_num} -ge 1 -a -z "${_uefi}" ]; then
+    # unless booting from a ROM, as we already inc slot in that mode
+    if [ ${_num} -ge 1 -a -z "${_firmware}" ]; then
         _slot=$((_slot + 1))
         _func=0
     fi
