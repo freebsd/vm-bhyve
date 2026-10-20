@@ -430,6 +430,37 @@ A pre-compiled copy of the UEFI firmware (BHYVE_UEFI_20160526.fd), as well as
 instructions for creating an
 unattended installation ISO can currently be obtained from
 .Lk https://people.freebsd.org/~grehan/bhyve_uefi/
+.\" ============ ARM64 SUPPORT =============
+.Sh ARM64 SUPPORT
+Guests can be run on arm64 hosts, with two differences from amd64.
+.Pp
+First, an arm64 guest always boots from a boot ROM, and the only ROM available
+is the U-Boot image installed by the
+.Sy u-boot-bhyve-arm64
+package.
+Guests must therefore use
+.Sy loader="uboot" ,
+and the
+.Sy bhyveload ,
+.Sy grub
+and
+.Sy uefi
+loaders are rejected because they have no arm64 equivalent.
+The
+.Pa freebsd-arm64.conf
+sample template provides a suitable starting point.
+.Pp
+Second,
+.Sy bhyve
+offers a single console device rather than a pair of com ports, so only the
+first entry in
+.Sy comports
+is used, and the
+.Sy utctime
+option has no effect.
+.Pp
+Note that a graphical console, sound and PCI passthrough have not been tested
+on arm64 and should be assumed unsupported for now.
 .\" ============ SUBCOMMANDS =============
 .Sh SUBCOMMANDS
 .Bl -tag -width indent
@@ -1331,8 +1362,25 @@ The valid options are
 .Sy grub ,
 .Sy uefi ,
 .Sy uefi-csm ,
+.Sy uefi-custom ,
 or
-.Sy uefi-custom .
+.Sy uboot .
+.Pp
+The valid values depend on the host architecture.
+On amd64 hosts, all loaders except
+.Sy uboot
+may be used.
+On arm64 hosts only
+.Sy uboot
+is valid:
+.Sy bhyveload
+and
+.Sy grub
+are amd64 host tools, and the boot ROM is the U-Boot image from the
+.Sy u-boot-bhyve-arm64
+package rather than UEFI firmware.
+See
+.Xr bhyve 8 .
 .It uefi_vars
 Setting this option to a true value allows the persistent storage of UEFI
 variables.
@@ -1420,6 +1468,10 @@ Valid values for this are
 and
 .Sy com2 .
 You can also connect two com ports by specifying both, separated by a space.
+.Pp
+On arm64 hosts
+.Sy bhyve
+provides a single console device, so only the first port listed is used.
 .It utctime
 As of version 1.2, vm-bhyve defaults to
 .Sy yes
@@ -1434,6 +1486,9 @@ If you require bhyve to use the host's time, as it would by default, explicitly
 set this
 to
 .Sy no .
+.Pp
+This option has no effect on arm64 hosts, which have no realtime clock for it
+to describe.
 .It debug
 If this is set to
 .Sy yes ,

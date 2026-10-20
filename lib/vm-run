@@ -13,7 +13,7 @@
 vm::run(){
     local _name _iso _iso_dev
     local _cpu _memory _bootdisk _bootdisk_dev _guest _wiredmem
-    local _guest_support _uefi _uuid _debug _hostbridge _fwcfg _loader
+    local _guest_support _uefi _firmware _uuid _debug _hostbridge _fwcfg _loader
     local _opts _devices _slot _bus=0 _maxslots=31 _install_slot _func=0 _taplist _exit _passdev
     local _com _comports _comstring _logpath="/dev/null" _run=1
     local _bhyve_options _action
@@ -92,16 +92,28 @@ vm::run(){
         fi
     fi
 
+    # make sure the loader can actually run on this host
+    vm::check_loader
+
     # default bhyve options
-    _opts="-AHPw"
+    # -A, -H, -P and -w are all amd64 only; arm64 bhyve accepts none of them
+    case "${VM_HOST_ARCH}" in
+        arm64) _opts="" ;;
+        *)     _opts="-AHPw" ;;
+    esac
 
     # ignore access to unimplemented Model Specific Registers?
-    config::yesno "ignore_msr" && _opts="${_opts}w"
+    # MSRs are an x86 concept, so this is amd64 only
+    case "${VM_HOST_ARCH}" in
+        arm64) ;;
+        *) config::yesno "ignore_msr" && _opts="${_opts}w" ;;
+    esac
 
-    # if uefi, make sure we have bootrom, then update options for uefi support
-    if [ "${_loader%-*}" = "uefi" ]; then
-        vm::uefi
-    fi
+    # if booting from a boot ROM, locate it and add the relevant options
+    case "${_loader}" in
+        uefi|uefi-*) vm::uefi ;;
+        uboot)       vm::uboot ;;
+    esac
 
     # add any custom bhyve options
     [ -n "${_bhyve_options}" ] && _opts="${_opts} ${_bhyve_options}"
@@ -125,9 +137,15 @@ vm::run(){
     [ -n "${_uuid}" ] && _opts="${_opts} -U ${_uuid}"
 
     # set utc time in opts if requested
-    if config::yesno "utctime" yes; then
-        _opts="${_opts} -u"
-    fi
+    # -u is amd64 only; arm64 has no RTC for it to describe
+    case "${VM_HOST_ARCH}" in
+        arm64) ;;
+        *)
+            if config::yesno "utctime" yes; then
+                _opts="${_opts} -u"
+            fi
+            ;;
+    esac
 
     # send bhyve output to bhyve.log if debug=yes
     util::yesno "${_debug}" && _logpath="${VM_DS_PATH}/${_name}/bhyve.log"
@@ -156,8 +174,9 @@ vm::run(){
         # destroy existing vmm
         # freebsd seems happy to run a bhyveload/bhyve loop
         # grub-bhyve doesn't seem to like it for a lot of users
-        # Peter says don't destroy in Windows instructions, so don't if in UEFI mode
-        if [ -e "/dev/vmm/${_name}" -a -z "${_uefi}" ]; then
+        # Peter says don't destroy in Windows instructions, so don't when the
+        # guest boots from a boot ROM
+        if [ -e "/dev/vmm/${_name}" -a -z "${_firmware}" ]; then
             bhyvectl --vm="${_name}" --destroy >/dev/null 2>&1
             if [ $? -ne 0 ]; then
                 util::log "guest" "${_name}" "fatal; failed to destroy existing vmm device"
@@ -188,7 +207,7 @@ vm::run(){
         [ "${_run}" -eq "2" ] && vm::bhyve_device_fbuf_clear_wait
 
         # load guest
-        if [ -z "${_uefi}" ]; then
+        if [ -z "${_firmware}" ]; then
 
             guest::load "${_iso}"
             _exit=$?
@@ -286,9 +305,60 @@ vm::run(){
     exit ${_exit}
 }
 
+# check the configured loader can run on this host architecture
+#
+# bhyveload and grub-bhyve are amd64 host tools, and the boot ROM differs by
+# architecture: amd64 uses the UEFI firmware from the edk2-bhyve package,
+# arm64 the U-Boot image from u-boot-bhyve-arm64. See bhyve(8).
+#
+vm::check_loader(){
+    case "${VM_HOST_ARCH}" in
+        arm64)
+            case "${_loader}" in
+                uboot) ;;
+                *)
+                    util::log "guest" "${_name}" \
+                      "fatal; loader '${_loader}' is not supported on ${VM_HOST_ARCH}, use loader=\"uboot\""
+                    exit 15
+                    ;;
+            esac
+            ;;
+        *)
+            case "${_loader}" in
+                uboot)
+                    util::log "guest" "${_name}" \
+                      "fatal; the uboot loader requires an arm64 host, this is ${VM_HOST_ARCH}"
+                    exit 15
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# creates options to boot an arm64 guest from the U-Boot image
+#
+# arm64 bhyve requires a boot ROM ("On arm64 platforms, this is currently
+# required" -- bhyve(8)) and takes it through the generic -o option rather
+# than -l, which is amd64 only.
+#
+# @modifies _opts _firmware
+#
+vm::uboot(){
+    local _bootrom="/usr/local/share/u-boot/u-boot-bhyve-arm64/u-boot.bin"
+
+    if [ ! -e "${_bootrom}" ]; then
+        util::log "guest" "${_name}" "fatal; unable to locate boot ROM ${_bootrom}"
+        util::log "guest" "${_name}" "the u-boot-bhyve-arm64 package provides it"
+        exit 15
+    fi
+
+    _opts="${_opts} -o bootrom=${_bootrom}"
+    _firmware="yes"
+}
+
 # creates options to use a uefi bootrom
 #
-# @modifies _opts _uefi
+# @modifies _opts _uefi _firmware
 #
 vm::uefi(){
     local _bootrom
@@ -332,6 +402,7 @@ vm::uefi(){
 
     _opts="${_opts} -l bootrom,${_bootrom}"
     _uefi="yes"
+    _firmware="yes"
 }
 
 # decide how to handle bhyve exit code
@@ -403,6 +474,18 @@ vm::bhyve_device_comports(){
 
     unlink "${VM_DS_PATH}/${_name}/console" >/dev/null 2>&1
 
+    # arm64 bhyve provides a single console device, so only the first
+    # configured port can be used
+    case "${VM_HOST_ARCH}" in
+        arm64)
+            if [ $(echo ${_comports} | wc -w) -gt 1 ]; then
+                util::log "guest" "${_name}" \
+                  "warning; ${VM_HOST_ARCH} supports only one console, using ${_comports%% *}"
+                _comports="${_comports%% *}"
+            fi
+            ;;
+    esac
+
     for _port in ${_comports}; do
         if [ ${_num} -eq 1 ]; then
             # if tmux mode, log this to the console data
@@ -413,7 +496,10 @@ vm::bhyve_device_comports(){
 
             # if foreground mode, we don't configure a serial port
             if [ -n "${VM_OPT_FOREGROUND}" ]; then
-                _comstring="-l ${_port},stdio"
+                case "${VM_HOST_ARCH}" in
+                    arm64) _comstring="-o console=stdio" ;;
+                    *)     _comstring="-l ${_port},stdio" ;;
+                esac
                 _num=$((_num + 1))
                 continue
             fi
@@ -426,7 +512,10 @@ vm::bhyve_device_comports(){
         [ ${_num} -eq 1 ] && _com="${_port_name}A"
 
         echo "${_port}=${_port_name}B" >> "${VM_DS_PATH}/${_name}/console"
-        _comstring="${_comstring}${_comstring:+ }-l ${_port},${_port_name}A"
+        case "${VM_HOST_ARCH}" in
+            arm64) _comstring="${_comstring}${_comstring:+ }-o console=${_port_name}A" ;;
+            *)     _comstring="${_comstring}${_comstring:+ }-l ${_port},${_port_name}A" ;;
+        esac
         _num=$((_num + 1))
     done
 }
@@ -447,7 +536,17 @@ vm::bhyve_device_basic(){
     esac
 
     # lpc
-    _devices="${_devices}${_devices:+ }-s 31,lpc${_fwcfg:+,fwcfg=$_fwcfg}"
+    # there is no LPC bridge on arm64 ("unknown device lpc"); the console is
+    # configured with -o console= instead, see vm::bhyve_device_comports
+    case "${VM_HOST_ARCH}" in
+        arm64)
+            [ -n "${_fwcfg}" ] && util::log "guest" "${_name}" \
+              "warning; fwcfg is provided by the lpc device and is not available on ${VM_HOST_ARCH}"
+            ;;
+        *)
+            _devices="${_devices}${_devices:+ }-s 31,lpc${_fwcfg:+,fwcfg=$_fwcfg}"
+            ;;
+    esac
 }
 
 # get bhyve device string for disk devices
@@ -536,7 +635,7 @@ vm::bhyve_device_disks(){
 
         # have we just added a device?
         if [ -n "${_add}" ]; then
-            if [ -n "${_uefi}" ]; then
+            if [ -n "${_firmware}" ]; then
                 _slot=$((_slot + 1))
 
             else
@@ -558,12 +657,12 @@ vm::bhyve_device_disks(){
     # have ahci devices left?
     if [ -n "${_ahci}" ]; then
         _devices="${_devices} -s ${_slot}:${_func},ahci${_ahci}"
-        [ -n "${_uefi}" ] && _slot=$((_slot + 1))
+        [ -n "${_firmware}" ] && _slot=$((_slot + 1))
     fi
 
     # move to next slot if we have devices
-    # unless uefi as we already inc slot in uefi mode
-    if [ ${_num} -ge 1 -a -z "${_uefi}" ]; then
+    # unless booting from a ROM, as we already inc slot in that mode
+    if [ ${_num} -ge 1 -a -z "${_firmware}" ]; then
         _slot=$((_slot + 1))
         _func=0
     fi
