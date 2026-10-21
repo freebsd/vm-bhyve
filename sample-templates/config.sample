@@ -252,6 +252,17 @@ network0_type="virtio-net"
 #
 network0_switch="public"
 
+# network0_fib
+# The FIB (routing table) to assign to the host-side tap interface for this
+# network interface. If not specified, the interface inherits the FIB of the
+# virtual switch, if one has been configured. This only affects host routing;
+# the guest still uses its own routing table.
+#
+# The value must be greater than or equal to zero and less than the current
+# net.fibs sysctl value.
+#
+network0_fib=""
+
 # network0_device
 # If you do not want vm-bhyve to create a new interface, but use an existing
 # one, enter the interface name here. This allows you to preconfigure the network

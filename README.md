@@ -181,6 +181,19 @@ off vlans, just set the vlan number to 0:
     # vm switch vlan public 10
     # vm switch vlan public 0
 
+If you use multiple routing tables, assign the switch to a FIB. Guest tap interfaces inherit this FIB
+automatically. The value is validated against the current `net.fibs` sysctl:
+
+    # vm switch create -f 1 private
+    # vm switch fib private 2
+
+For vxlan switches, the tunnel FIB can be set separately. It defaults to the switch FIB:
+
+    # vm switch create -t vxlan -i em0 -n 100 -f 1 -F 0 vxlan100
+
+Individual guest interfaces can override the switch FIB by setting `networkX_fib` in the guest
+configuration. This only affects the host-side tap interface, not routing inside the guest.
+
 You can view current switch configuration using the list command:
 
     # vm switch list
