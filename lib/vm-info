@@ -79,11 +79,12 @@ info::switch_show(){
 
     [ -z "${_switch}" ] && return 1
 
-    config::get "_type" "type_${_switch}" "standard"
+    config::get "_type" "type_${_switch}"
     config::get "_bridge" "bridge_${_switch}"
     config::get "_vale" "vale_${_switch}"
     config::get "_netgraph" "netgraph_${_switch}"
 
+    [ -z "${_type}" ] && util::err "switch '${_switch}' not found"
 
     echo "------------------------"
     echo "Virtual Switch: ${_switch}"
