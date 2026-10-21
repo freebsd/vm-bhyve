@@ -37,6 +37,8 @@
 .Op Fl b Ar bridge
 .Op Fl m Ar mtu
 .Op Fl a Ar address
+.Op Fl f Ar fib
+.Op Fl F Ar tunnelfib
 .Op Fl p
 .Ar name
 .Nm
@@ -52,6 +54,12 @@
 .Nm
 .Cm switch private
 .Ar name on|off
+.Nm
+.Cm switch fib
+.Ar name fib-id
+.Nm
+.Cm switch tunnelfib
+.Ar name tunnelfib-id
 .Nm
 .Cm switch add
 .Ar name interface
@@ -525,6 +533,8 @@ o Virtual ports, including the associated virtual machine
 .Op Fl b Ar bridge
 .Op Fl m Ar mtu
 .Op Fl a Ar address
+.Op Fl f Ar fib
+.Op Fl F Ar tunnelfib
 .Op Fl p
 .Ar name
 .Xc
@@ -594,6 +604,40 @@ interface.
 This should be specified in
 .Sy a.b.c.d/prefix-len
 CIDR notation.
+.It Fl f Ar fib
+Assign the switch to the specified FIB (routing table).
+This is supported for
+.Sy standard ,
+.Sy manual ,
+and
+.Sy vxlan
+switches.
+For
+.Sy standard
+switches the FIB is applied to the bridge, physical and VLAN member
+interfaces, and newly created guest tap interfaces.
+For
+.Sy manual
+switches only the imported bridge and vm-bhyve guest tap interfaces are
+changed; other members remain under the control of the user.
+For
+.Sy vxlan
+switches the FIB is also applied to the vxlan interface.
+The value must be greater than or equal to zero and less than the current
+.Va net.fibs
+.Xr sysctl 8
+value, which is checked at the time the switch is created or updated.
+.It Fl F Ar tunnelfib
+Assign the tunnel FIB for a
+.Sy vxlan
+switch.
+This controls the routing table used to look up the remote or multicast tunnel
+destination, and is used for the multicast route added by vm-bhyve.
+If not specified, it defaults to the switch FIB.
+The value is validated against the current
+.Va net.fibs
+.Xr sysctl 8
+value.
 .It Fl p
 Use this option to create a private switch.
 If this is enabled, no traffic will be allowed between guests on the same
@@ -641,6 +685,40 @@ interface(s), not with each other.
 .Pp
 Please note that changing this setting does not affect guests that are already
 running, but will be applied to any guests started from cold-boot thereafter.
+.It Cm switch fib Ar name Ar fib-id
+Set the FIB (routing table) for the named virtual switch and update the
+persistent configuration.
+This is supported for
+.Sy standard ,
+.Sy manual ,
+and
+.Sy vxlan
+switches.
+For standard and vxlan switches, the new FIB is applied to the bridge and
+member interfaces, configured bridge addresses are moved to the new FIB, and
+running guest taps that inherit the switch FIB are updated.
+For manual switches only the imported bridge and vm-bhyve guest taps are
+updated.
+Guest taps with an explicit
+.Sy networkX_fib
+setting are left unchanged.
+.Pp
+The value must be greater than or equal to zero and less than the current
+.Va net.fibs
+.Xr sysctl 8
+value.
+If the switch is not currently active, only the persistent configuration is
+updated.
+.It Cm switch tunnelfib Ar name Ar tunnelfib-id
+Set the tunnel FIB for the named
+.Sy vxlan
+switch and update the persistent configuration.
+The vxlan interface is updated and the multicast route is moved to the new
+FIB.
+The value is validated against the current
+.Va net.fibs
+.Xr sysctl 8
+value.
 .It Cm switch add Ar name Ar interface
 Add the specified interface to the named virtual switch.
 .Pp
@@ -1528,6 +1606,18 @@ you may not need the interface connected to a virtual switch.
 See the
 .Sy network0_device
 configuration option.
+.It network0_fib
+The FIB (routing table) to assign to the host-side
+.Xr tap 4
+interface for this guest network interface.
+If not specified, the interface inherits the FIB configured on the virtual
+switch, if any.
+This setting only affects routing on the host; it does not change the routing
+table inside the guest.
+The value must be greater than or equal to zero and less than the current
+.Va net.fibs
+.Xr sysctl 8
+value, and is validated when the guest starts.
 .It network0_device
 Normally vm-bhyve will create a
 .Xr tap 4

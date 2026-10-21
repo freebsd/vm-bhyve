@@ -40,12 +40,12 @@ switch::init(){
 #
 switch::list(){
     local _switchlist _switch _type
-    local _id _format="%s^%s^%s^%s^%s^%s^%s^%s\n"
+    local _id _format="%s^%s^%s^%s^%s^%s^%s^%s^%s\n"
 
     config::core::get "_switchlist" "switch_list"
 
     {
-        printf "${_format}" "NAME" "TYPE" "IFACE" "ADDRESS" "PRIVATE" "MTU" "VLAN" "PORTS"
+        printf "${_format}" "NAME" "TYPE" "IFACE" "ADDRESS" "PRIVATE" "MTU" "FIB" "VLAN" "PORTS"
 
         if [ -n "${_switchlist}" ]; then
             for _switch in ${_switchlist}; do
@@ -71,10 +71,10 @@ switch::list(){
 switch::create(){
     local _switch
     local _type="standard"
-    local _list _curr _vlan _if _bridge _addr _mtu _priv
+    local _list _curr _vlan _if _bridge _addr _mtu _priv _fib _tunnelfib
 
     # process options
-    while getopts t:i:n:b:a:m:p _opt; do
+    while getopts t:i:n:b:a:m:pf:F: _opt; do
         case ${_opt} in
             t) _type="${OPTARG}" ;;
             i) _if="${OPTARG}" ;;
@@ -83,6 +83,8 @@ switch::create(){
             a) _addr="${OPTARG}" ;;
             m) _mtu="${OPTARG}" ;;
             p) _priv="yes" ;;
+            f) _fib="${OPTARG}" ;;
+            F) _tunnelfib="${OPTARG}" ;;
             *) util::usage ;;
         esac
     done
@@ -119,6 +121,28 @@ switch::create(){
         [ $? -eq 0 ] || util::err "invalid mtu"
         [ ${_mtu} -gt 9000 ] && util::err "invalid mtu"
     fi
+
+    # check fib
+    if [ -n "${_fib}" -o -n "${_tunnelfib}" ]; then
+        case "${_type}" in
+            standard|manual|vxlan) ;;
+            *) util::err "FIB is only supported on standard, manual and vxlan switches" ;;
+        esac
+    fi
+
+    if [ -n "${_fib}" ]; then
+        util::validate_fib "${_fib}" || \
+            util::err "invalid fib '${_fib}' (net.fibs is $(sysctl -n net.fibs))"
+    fi
+
+    if [ -n "${_tunnelfib}" ]; then
+        [ "${_type}" = "vxlan" ] || util::err "tunnelfib is only supported on vxlan switches"
+        util::validate_fib "${_tunnelfib}" || \
+            util::err "invalid tunnelfib '${_tunnelfib}' (net.fibs is $(sysctl -n net.fibs))"
+    fi
+
+    [ -n "${_fib}" ] && config::core::set "fib_${_switch}" "${_fib}"
+    [ -n "${_tunnelfib}" ] && config::core::set "tunnelfib_${_switch}" "${_tunnelfib}"
 
     # check switch type
     case "${_type}" in
@@ -159,6 +183,7 @@ switch::remove(){
         config::core::remove "switch_list" "${_switch}"
         config::core::remove "ports_${_switch} vlan_${_switch} nat_${_switch} type_${_switch}"
         config::core::remove "addr_${_switch} addr6_${_switch} private_${_switch} mtu_${_switch}"
+        config::core::remove "fib_${_switch} tunnelfib_${_switch}"
     else
         util::err "failed to remove virtual switch"
     fi
@@ -283,6 +308,82 @@ switch::private(){
             util::err "unable to configure switch of unknown type"
             ;;
     esac
+}
+
+# set the fib for a virtual switch
+#
+# @param string _switch name of the switch
+# @param int _fib the FIB to use
+#
+switch::fib(){
+    local _switch="$1"
+    local _fib="$2"
+    local _type _id _list
+
+    [ -z "${_switch}" -o -z "${_fib}" ] && util::usage
+
+    config::core::get "_list" "switch_list"
+    case " ${_list} " in
+        *" ${_switch} "*) ;;
+        *) util::err "specified switch does not appear to be valid" ;;
+    esac
+
+    util::validate_fib "${_fib}" || \
+        util::err "invalid fib '${_fib}' (net.fibs is $(sysctl -n net.fibs))"
+
+    switch::type "_type" "${_switch}"
+
+    case "${_type}" in
+        standard|manual|vxlan) ;;
+        *) util::err "fib is not supported on switches of this type" ;;
+    esac
+
+    switch::id "_id" "${_switch}"
+
+    if [ -n "${_id}" ] && ifconfig "${_id}" >/dev/null 2>&1; then
+        case "${_type}" in
+            standard) switch::standard::fib "${_switch}" "${_fib}" ;;
+            manual)   switch::manual::fib "${_switch}" "${_fib}" ;;
+            vxlan)    switch::vxlan::fib "${_switch}" "${_fib}" ;;
+        esac
+    fi
+
+    config::core::set "fib_${_switch}" "${_fib}"
+    config::core::load
+}
+
+# set the tunnel fib for a vxlan switch
+#
+# @param string _switch name of the switch
+# @param int _tunnelfib the tunnel FIB to use
+#
+switch::tunnelfib(){
+    local _switch="$1"
+    local _tunnelfib="$2"
+    local _type _id _list
+
+    [ -z "${_switch}" -o -z "${_tunnelfib}" ] && util::usage
+
+    config::core::get "_list" "switch_list"
+    case " ${_list} " in
+        *" ${_switch} "*) ;;
+        *) util::err "specified switch does not appear to be valid" ;;
+    esac
+
+    util::validate_fib "${_tunnelfib}" || \
+        util::err "invalid tunnelfib '${_tunnelfib}' (net.fibs is $(sysctl -n net.fibs))"
+
+    switch::type "_type" "${_switch}"
+    [ "${_type}" = "vxlan" ] || util::err "tunnelfib is only supported on vxlan switches"
+
+    switch::id "_id" "${_switch}"
+
+    if [ -n "${_id}" ] && ifconfig "${_id}" >/dev/null 2>&1; then
+        switch::vxlan::tunnelfib "${_switch}" "${_tunnelfib}"
+    fi
+
+    config::core::set "tunnelfib_${_switch}" "${_tunnelfib}"
+    config::core::load
 }
 
 # enable or disable nat functionality on a virtual switch

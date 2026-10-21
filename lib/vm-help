@@ -56,6 +56,8 @@ Usage:
     vm switch address <name> <a.b.c.d/xx|3fff::abcd/xx|none>
     vm switch address <name> <a.b.c.d/xx|3fff::abcd/xx> delete
     vm switch private <name> <on|off>
+    vm switch fib <name> <fib-id>
+    vm switch tunnelfib <name> <tunnelfib-id>
     vm switch add <name> <interface>
     vm switch remove <name> <interface>
     vm switch destroy <name>
@@ -67,6 +69,8 @@ Options (create):
     -m <size>       MTU size of the switch
     -a <address>    IP address (CIDR notation) assigned to bridge interface
     -b <bridge>     Specify an existing bridge when creating a manual switch
+    -f <fib>        FIB (routing table) for standard, manual and vxlan switches
+    -F <fib>        Tunnel FIB for vxlan switches
     -p              Create a private switch
 "
 
