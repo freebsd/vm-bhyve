@@ -123,7 +123,7 @@ cmd::parse_switch(){
     [ -z "$1" ] && help::show "switch"
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "create,list,destroy,add,remove,vlan,nat,address,private,info" || help::show "switch"
+    cmd::find "_cmd" "$1" "create,list,destroy,add,remove,vlan,nat,address,private,fib,tunnelfib,info" || help::show "switch"
     shift
 
     case "${_cmd}" in
@@ -136,6 +136,8 @@ cmd::parse_switch(){
         nat)     switch::nat "$@" ;;
         address) switch::address "$@" ;;
         private) switch::private "$@" ;;
+        fib)     switch::fib "$@" ;;
+        tunnelfib) switch::tunnelfib "$@" ;;
         info)    info::switch "$@" ;;
         *)       util::err "unknown command '${_user_cmd}'. please run 'vm usage' or view the manpage for help" ;;
     esac

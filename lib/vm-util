@@ -498,3 +498,23 @@ util::validate_cidr(){
             return 1 ;;
     esac
 }
+
+#
+# validate_fib
+# validate a FIB number against the current net.fibs sysctl
+#
+# @param int FIB number
+#
+util::validate_fib(){
+    local _fib="$1"
+    local _max
+
+    case "${_fib}" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+
+    _max=$(sysctl -n net.fibs 2>/dev/null)
+    [ -n "${_max}" ] || return 1
+
+    [ "${_fib}" -ge 0 ] && [ "${_fib}" -lt "${_max}" ]
+}
