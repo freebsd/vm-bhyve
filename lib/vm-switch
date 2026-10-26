@@ -91,7 +91,7 @@ switch::create(){
     _switch="$1"
 
     # check for a valid switch name
-    util::check_name "${_switch}" || util::err "invalid switch name - '${_switch}'"
+    switch::check_name "${_switch}" || util::err "invalid switch name - '${_switch}'"
 
     # make sure it's not an existing name
     config::core::get "_list" "switch_list"
@@ -444,3 +444,33 @@ switch::provision(){
         *)        util::warn "unable to configure interface ${_num}" ;;
     esac
 }
+
+# check switch name
+#
+# The switch name must not exceed 12 chars, it comes from:
+#   16 (IF_NAMESIZE) - 1 (null terminator) - 3 ("vm-" prefix)
+#
+# NOTE:
+#   To ensure safety during internal processing, such as parsing via sysrc(8),
+#   naming rules are mroe restrictive than native FreeBSD limits.
+#
+#   Switch names
+#   - must start with a letter
+#   - can only include underscores as symbols, but not at the beginning or end
+#   - must end with a letter or digit
+#
+# @param _name name to check
+# @return 0: name is valid
+#         1: invalid format
+#         2: length out of range
+#
+switch::check_name(){
+    local _maxlen=12
+    local _name="$1"
+
+    [ -z "${#_name}" ] && return 2
+    [ "${#_name}" -gt "${_maxlen}" ] && return 2
+
+    echo "${_name}" | egrep -iqs "^[a-z]([a-z0-9_]*[a-z0-9])?\$"
+}
+
