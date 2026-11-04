@@ -10,6 +10,7 @@
 switch::manual::init(){
     local _name="$1"
     local _bridge="$2"
+    local _fib
 
     # get bridge
     if [ -z "${_bridge}" ]; then
@@ -20,6 +21,8 @@ switch::manual::init(){
     # don't rename custom bridges nor set a description.
     # manual interfaces are fully configured using rc.conf.
     ifconfig "${_bridge}" group vm-switch up >/dev/null 2>&1
+    config::core::get "_fib" "fib_${_name}"
+    [ -n "${_fib}" ] && ifconfig "${_bridge}" fib "${_fib}" >/dev/null 2>&1
     switch::set_viid "${_name}" "${_bridge}"
 }
 
@@ -31,11 +34,12 @@ switch::manual::init(){
 switch::manual::show(){
     local _name="$1"
     local _format="$2"
-    local _bridge _priv
+    local _bridge _priv _fib
 
     config::core::get "_bridge" "bridge_${_name}"
     config::core::get "_priv" "private_${_name}" "no"
-    printf "${_format}" "${_name}" "manual" "${_bridge}" "n/a" "${_priv}" "n/a" "n/a" "n/a"
+    config::core::get "_fib" "fib_${_name}"
+    printf "${_format}" "${_name}" "manual" "${_bridge}" "n/a" "${_priv}" "n/a" "${_fib:--}" "n/a" "n/a"
 }
 
 # create a manual switch
@@ -57,8 +61,35 @@ switch::manual::create(){
 
     [ -n "${_priv}" ] && config::core::set "private_${_switch}" "${_priv}"
 
+    config::core::load
+
     # import
     switch::manual::init "${_switch}" "${_bridge}"
+}
+
+# set the fib for a manual switch
+# only the imported bridge and taps managed by vm-bhyve are changed
+#
+# @param string _switch name of the switch
+# @param int _fib the FIB to use
+#
+switch::manual::fib(){
+    local _switch="$1"
+    local _fib="$2"
+    local _id _member
+
+    switch::manual::id "_id" "${_switch}"
+    [ -z "${_id}" ] && util::err "unable to locate switch bridge"
+
+    ifconfig "${_id}" fib "${_fib}" >/dev/null 2>&1 || \
+        util::err "failed to set fib ${_fib} on ${_id}"
+
+    for _member in $(ifconfig "${_id}" | awk '/member:/{print $2}'); do
+        switch::standard::__tap_managed "${_member}" || continue
+        switch::standard::__tap_inherits_fib "${_member}" || continue
+
+        ifconfig "${_member}" fib "${_fib}" >/dev/null 2>&1
+    done
 }
 
 # remove a manual switch
