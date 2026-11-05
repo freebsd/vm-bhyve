@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # PROVIDE: vm
-# REQUIRE: DAEMON vm_network
+# REQUIRE: LOGIN vm_network
 # KEYWORD: shutdown nojailvnet
 
 . /etc/rc.subr
