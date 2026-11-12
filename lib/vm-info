@@ -98,6 +98,14 @@ info::switch_show(){
 
     echo "${_INDENT}ident: ${_id:--}"
 
+    info::__output_config "fib_${_switch}" "fib"
+
+    if [ "${_type}" = "vxlan" ]; then
+        config::get "_fib" "fib_${_switch}"
+        config::get "_tunnelfib" "tunnelfib_${_switch}" "${_fib}"
+        [ -n "${_tunnelfib}" ] && echo "${_INDENT}tunnelfib: ${_tunnelfib}"
+    fi
+
     info::__output_config "vlan_${_switch}" "vlan"
     info::__output_config "ports_${_switch}" "physical-ports"
 
@@ -326,7 +334,7 @@ info::guest_disks(){
 #
 info::guest_networking(){
     local _num=0
-    local _int _id _tag _switch _stats _b_in _b_out
+    local _int _id _tag _switch _stats _b_in _b_out _nfib _sfib _fibout _afib
     local _INDENT="    "
 
     while true; do
@@ -343,10 +351,21 @@ info::guest_networking(){
         info::__output_config "network${_num}_mac" "fixed-mac-address"
         info::__output_config "network${_num}_device" "fixed-device"
 
+        config::get "_nfib" "network${_num}_fib"
+        config::get "_switch" "network${_num}_switch"
+        _fibout=""
+
+        if [ -n "${_nfib}" ]; then
+            _fibout="${_nfib}"
+        elif [ -n "${_switch}" ]; then
+            config::core::get "_sfib" "fib_${_switch}"
+            _fibout="${_sfib:+${_sfib} (switch)}"
+        fi
+
+        echo "${_INDENT}fib: ${_fibout:--}"
+
         # if running, try to get some more interface details
         if [ "${_RUN}" = "1" ]; then
-            config::get "_switch" "network${_num}_switch"
-
             _int=$(ifconfig | grep -B1 "vmnet/${_name}/${_num}/" | head -n1 | cut -d' ' -f1,6)
             _id=${_int%%:*}
             _tag=$(ifconfig | grep "vmnet/${_name}/${_num}/" | cut -d' ' -f2)
@@ -357,6 +376,9 @@ info::guest_networking(){
             echo "${_INDENT}desc: ${_tag:--}"
             echo "${_INDENT}mtu: ${_int##* }"
             echo "${_INDENT}bridge: ${_bridge:--}"
+
+            _afib=$(ifconfig "${_id}" 2>/dev/null | awk '/^[[:space:]]*fib:/{print $2}')
+            echo "${_INDENT}active-fib: ${_afib:--}"
 
             if [ -n "${_id}" ]; then
                 _stats=$(netstat -biI "${_id}" |grep '<Link#' |tail -n1 |awk '{ for (i=NF; i>1; i--) printf("%s ",$i); print $1; }' |awk '{print $2,$5}')

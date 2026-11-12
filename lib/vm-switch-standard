@@ -8,7 +8,7 @@
 #
 switch::standard::init(){
     local _name="$1"
-    local _id _addr _mtu _len _ifconf
+    local _id _addr _mtu _len _ifconf _fib
 
     # see if it already exists
     switch::standard::id "_id" "${_name}" && return 0
@@ -29,6 +29,10 @@ switch::standard::init(){
     [ $? -eq 0 ] || util::err "failed to create bridge interface for switch ${_name}"
 
     switch::set_viid "${_name}" "${_id}"
+
+    # set the switch FIB
+    config::core::get "_fib" "fib_${_name}"
+    [ -n "${_fib}" ] && ifconfig "${_id}" fib "${_fib}" >/dev/null 2>&1
 
     # randomise mac
     ifconfig "${_id}" link random
@@ -55,7 +59,7 @@ switch::standard::init(){
 switch::standard::show(){
     local _name="$1"
     local _format="$2"
-    local _id _vlan _ports _addr _addr6 _mtu _priv
+    local _id _vlan _ports _addr _addr6 _mtu _priv _fib
 
     switch::find "_id" "${_name}"
     config::core::get "_ports" "ports_${_name}"
@@ -63,22 +67,24 @@ switch::standard::show(){
     config::core::get "_addr" "addr_${_name}"
     config::core::get "_addr6" "addr6_${_name}"
     config::core::get "_mtu" "mtu_${_name}"
+    config::core::get "_fib" "fib_${_name}"
     config::core::get "_priv" "private_${_name}" "no"
 
     if [ -n "${_addr}" -a -n "${_addr6}" ]; then
       # if the interface has both IPv4 and IPv6 addresses, print IPv4 first
       printf "${_format}" "${_name}" "standard" "${_id:--}" "${_addr:--}" "${_priv}" "${_mtu:--}" \
-        "${_vlan:--}" "${_ports:--}"
+        "${_fib:--}" "${_vlan:--}" "${_ports:--}"
 
       # and IPv6 next
       printf "${_format}" \
                 "$(util::pad_spaces "${_name}")" "$(util::pad_spaces "standard")" \
                 "$(util::pad_spaces "${_id}")" "${_addr6}" \
                 "$(util::pad_spaces "${_priv}")" "$(util::pad_spaces "${_mtu}")" \
-                "$(util::pad_spaces "${_vlan}")" "$(util::pad_spaces "${_ports}")"
+                "$(util::pad_spaces "${_fib}")" "$(util::pad_spaces "${_vlan}")" \
+                "$(util::pad_spaces "${_ports}")"
     else
       printf "${_format}" "${_name}" "standard" "${_id:--}" "${_addr:-${_addr6:--}}" "${_priv}" \
-        "${_mtu:--}" "${_vlan:--}" "${_ports:--}"
+        "${_mtu:--}" "${_fib:--}" "${_vlan:--}" "${_ports:--}"
     fi
 }
 
@@ -102,6 +108,94 @@ switch::standard::create(){
 
     config::core::load
     switch::standard::init "${_switch}"
+}
+
+# set the fib for a standard switch
+# this also updates physical and vlan member interfaces
+# and moves configured addresses to the new FIB
+#
+# @param string _switch name of the switch
+# @param int _fib the FIB to use
+#
+switch::standard::fib(){
+    local _switch="$1"
+    local _fib="$2"
+    local _id _addr _addr6
+
+    switch::standard::id "_id" "${_switch}" || util::err "unable to locate switch id"
+
+    config::core::get "_addr" "addr_${_switch}"
+    config::core::get "_addr6" "addr6_${_switch}"
+
+    # remove configured addresses first so their routes are removed
+    # from the old FIB before the interface is moved
+    [ -n "${_addr}" ] && ifconfig "${_id}" inet "${_addr}" delete >/dev/null 2>&1
+    [ -n "${_addr6}" ] && ifconfig "${_id}" inet6 "${_addr6}" delete >/dev/null 2>&1
+
+    ifconfig "${_id}" fib "${_fib}" >/dev/null 2>&1 || \
+        util::err "failed to set fib ${_fib} on ${_id}"
+    switch::standard::__member_fib "${_id}" "${_fib}"
+
+    # add the addresses back so their routes are created in the new FIB
+    [ -n "${_addr}" ] && ifconfig "${_id}" inet "${_addr}" >/dev/null 2>&1
+    [ -n "${_addr6}" ] && ifconfig "${_id}" inet6 "${_addr6}" auto_linklocal >/dev/null 2>&1
+}
+
+# set the fib on all current members of a bridge
+#
+# @param string _id bridge interface
+# @param int _fib the FIB to use
+#
+switch::standard::__member_fib(){
+    local _id="$1"
+    local _fib="$2"
+    local _member
+
+    for _member in $(ifconfig "${_id}" | awk '/member:/{print $2}'); do
+        switch::standard::__tap_inherits_fib "${_member}" || continue
+
+        ifconfig "${_member}" fib "${_fib}" >/dev/null 2>&1
+    done
+}
+
+# check whether an interface is a tap managed by vm-bhyve
+#
+# @param string _tap the tap interface
+# @return 0 if the tap belongs to a vm-bhyve guest
+#
+switch::standard::__tap_managed(){
+    local _tap="$1"
+    local _desc
+
+    _desc=$(ifconfig "${_tap}" | awk '/description: vmnet/{print $2}')
+
+    case "${_desc}" in
+        vmnet/*/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# check whether a guest tap inherits the switch fib
+# taps with an explicit networkN_fib setting are left alone
+#
+# @param string _tap the tap interface
+# @return 0 if the tap should inherit the switch fib
+#
+switch::standard::__tap_inherits_fib(){
+    local _tap="$1"
+    local _desc _guest _num _nfib
+
+    switch::standard::__tap_managed "${_tap}" || return 0
+
+    _desc=$(ifconfig "${_tap}" | awk '/description: vmnet/{print $2}')
+    _guest=$(echo "${_desc}" | cut -d/ -f2)
+    _num=$(echo "${_desc}" | cut -d/ -f3)
+
+    datastore::get_guest "${_guest}" || return 0
+    config::load "${VM_DS_PATH}/${_guest}/${_guest}.conf"
+    config::get "_nfib" "network${_num}_fib"
+
+    [ -z "${_nfib}" ]
 }
 
 # destroy a standard switch
@@ -320,10 +414,12 @@ switch::standard::__configure_port(){
     local _port="$3"
     local _vlan="$4"
     local _mtu="$5"
-    local _viface _vname
+    local _viface _vname _fib
 
     # try to set mtu of port?
     [ -n "${_mtu}" ] && ifconfig "${_port}" mtu ${_mtu} >/dev/null 2>&1
+
+    config::core::get "_fib" "fib_${_switch}"
 
     # vlan enabled?
     if [ -n "${_vlan}" ]; then
@@ -341,10 +437,12 @@ switch::standard::__configure_port(){
             [ $? -eq 0 ] || util::err "failed to create vlan interface for port ${_port} on switch ${_switch}"
         fi
 
+        [ -n "${_fib}" ] && ifconfig "${_viface}" fib "${_fib}" >/dev/null 2>&1
         switch::set_viid "${_vname}" "${_viface}"
         ifconfig ${_id} addm ${_viface} >/dev/null 2>&1
     else
         # add to bridge, nice and simple :)
+        [ -n "${_fib}" ] && ifconfig "${_port}" fib "${_fib}" >/dev/null 2>&1
         ifconfig ${_id} addm ${_port} >/dev/null 2>&1
     fi
 
@@ -394,10 +492,18 @@ switch::standard::id(){
 # @return 1 if we don't get a tap device
 #
 switch::standard::provision(){
-    local _tap _custom_tap _sid _mtu _member_type _iname
+    local _tap _custom_tap _sid _mtu _member_type _iname _fib
 
     config::get "_custom_tap" "network${_num}_device"
     config::get "_iname" "network${_num}_name"
+    config::get "_fib" "network${_num}_fib"
+
+    if [ -n "${_fib}" ]; then
+        util::validate_fib "${_fib}" || \
+            util::err "invalid fib '${_fib}' for network${_num} (net.fibs is $(sysctl -n net.fibs))"
+    elif [ -n "${_switch}" ]; then
+        config::core::get "_fib" "fib_${_switch}"
+    fi
 
     # create interface
     if [ -n "${_custom_tap}" ]; then
@@ -412,6 +518,7 @@ switch::standard::provision(){
 
     util::log "guest" "${_name}" "initialising network device ${_tap}"
     ifconfig "${_tap}" descr "vmnet/${_name}/${_num}/${_switch:-custom}" group vm-port >/dev/null 2>&1
+    [ -n "${_fib}" ] && ifconfig "${_tap}" fib "${_fib}" >/dev/null 2>&1
 
     if [ -n "${_switch}" ]; then
         switch::id "_sid" "${_switch}"
