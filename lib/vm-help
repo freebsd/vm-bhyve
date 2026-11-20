@@ -71,6 +71,7 @@ Options (create):
 
 Options (address):
     -n <vlan-id>    VLAN ID to configure IP address on (required for vlanfilter)
+                    (not implemented yet)
 "
 
 #------------------------------------------------------------------------------

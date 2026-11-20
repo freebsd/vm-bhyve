@@ -96,6 +96,9 @@ switch::vlanfilter::create(){
     # see if it is supported
     switch::vlanfilter::supported
 
+    [ -n "${_addr}" ] && \
+        util::err "assigning IP address to vlanfilter switch is not supported yet"
+
     # store configuration
     config::core::set "switch_list" "${_switch}" "1"
     config::core::set "type_${_switch}" "vlanfilter"
@@ -206,7 +209,7 @@ switch::vlanfilter::address(){
     local _delete="$4"
     local _curr _curr6
 
-    #util::err "assigning ip address to vlanfilter switch is not supported"
+    util::err "assigning IP address to vlanfilter switch is not supported yet"
 
     # validate vlan id
     if [ -n "${_vlan}" ]; then
