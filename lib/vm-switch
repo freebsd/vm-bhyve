@@ -375,6 +375,22 @@ switch::is_private(){
     util::yesno "${_priv}"
 }
 
+# check if the bridge of a switch has vlanfilter enabled
+#
+# @param string _switch switch name
+# @return 0 (success) if vlanfilter is enabled
+#
+switch::is_vlanfilter(){
+    local _switch="$1"
+    local _id
+
+    switch::id "_id" "${_switch}" || return 1
+    [ -z "${_id}" ] && return 1
+
+    ifconfig "${_id}" 2>/dev/null | \
+        grep -Eq '^[[:space:]]*bridge flags=[0-9a-fA-Fx]+<([^>]*,)?VLANFILTER(,[^>]*)?>'
+}
+
 # get the bridge id for a virtual switch
 #
 # @param string _var variable to put name into
@@ -460,8 +476,8 @@ switch::provision(){
         vale)       switch::vale::provision ;;
         netgraph)   switch::netgraph::provision ;;
         vlanfilter) switch::vlanfilter::provision ;;
+        manual)     switch::manual::provision ;;
         standard)   ;&
-        manual)     ;&
         vxlan)      switch::standard::provision ;;
         *)          util::warn "unable to configure interface ${_num}" ;;
     esac
