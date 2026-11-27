@@ -12,7 +12,12 @@ switch::vlanfilter::init()
     local _id _addr _mtu _len _ifconf
 
     # see if it is supported
-    switch::vlanfilter::supported
+    # don't use util::err here: this runs for every switch at boot and
+    # must not stop the remaining switches from being created
+    if ! switch::vlanfilter::supported; then
+        util::warn "skipping vlanfilter switch '${_name}': requires FreeBSD 15.0 or later"
+        return 1
+    fi
 
     # see if it already exists
     switch::vlanfilter::id "_id" "${_name}" && return 0
@@ -94,7 +99,8 @@ switch::vlanfilter::show(){
 #
 switch::vlanfilter::create(){
     # see if it is supported
-    switch::vlanfilter::supported
+    switch::vlanfilter::supported || \
+        util::err "vlanfilter switch (VLAN filtering bridge) requires FreeBSD 15.0 or later"
 
     [ -n "${_addr}" ] && \
         util::err "assigning IP address to vlanfilter switch is not supported yet"
@@ -473,8 +479,9 @@ switch::vlanfilter::provision(){
 #
 # check if vlanfilter is supported
 #
+# @return success (0) if the running system supports vlanfilter
+#
 switch::vlanfilter::supported()
 {
-    [ ${VERSION_BSD} -lt 1500000 ] && \
-        util::err "vlanfilter switch (VLAN filtering bridge) requires FreeBSD 15.0 or later"
+    [ ${VERSION_BSD} -ge 1500000 ]
 }
