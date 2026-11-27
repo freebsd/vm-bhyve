@@ -13,8 +13,8 @@ tags::add(){
     shift
     _tags="$@"
 
-    [ -z "${_name}" ] && help::show "tags"
-    [ -z "${_tags}" ] && help::show "tags"
+    [ -z "${_name}" ] && help::show "tags" 1
+    [ -z "${_tags}" ] && help::show "tags" 1
 
     for _tag in ${_tags}; do
         util::check_name "${_tag}" || util::err "invalid tag name - '${_tag}'"
@@ -36,8 +36,8 @@ tags::remove(){
     shift
     _tags="$@"
 
-    [ -z "${_name}" ] && help::show "tags"
-    [ -z "${_tags}" ] && help::show "tags"
+    [ -z "${_name}" ] && help::show "tags" 1
+    [ -z "${_tags}" ] && help::show "tags" 1
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -52,7 +52,7 @@ tags::list(){
 
     _name="$1"
 
-    [ -z "${_name}" ] && help::show "tags"
+    [ -z "${_name}" ] && help::show "tags" 1
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -70,7 +70,7 @@ tags::find(){
     _tag="$1"
     shift
 
-    [ -z "${_tag}" ] && help::show "tags"
+    [ -z "${_tag}" ] && help::show "tags" 1
 
     for _ds in ${VM_DATASTORE_LIST}; do
         datastore::get "${_ds}" || continue

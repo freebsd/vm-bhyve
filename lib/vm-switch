@@ -86,14 +86,14 @@ switch::create(){
             a) _addr="${OPTARG}" ;;
             m) _mtu="${OPTARG}" ;;
             p) _priv="yes" ;;
-            *) help::show "switch" ;;
+            *) help::show "switch" 1 ;;
         esac
     done
 
     shift $((OPTIND - 1))
     _switch="$1"
 
-    [ -z "${_switch}" ] && help::show "switch"
+    [ -z "${_switch}" ] && help::show "switch" 1
 
     # check for a valid switch name
     switch::check_name "${_switch}" || util::err "invalid switch name - '${_switch}'"
@@ -146,7 +146,7 @@ switch::remove(){
     local _switch="$1"
     local _type
 
-    [ -z "${_switch}" ] && help::show "switch"
+    [ -z "${_switch}" ] && help::show "switch" 1
 
     # get the type of switch
     config::core::get "_type" "type_${_switch}"
@@ -186,7 +186,7 @@ switch::add_member(){
     local _if="$2"
     local _type
 
-    [ -z "${_switch}" -o -z "${_if}" ] && help::show "switch"
+    [ -z "${_switch}" -o -z "${_if}" ] && help::show "switch" 1
 
     # get the type of switch
     config::core::get "_type" "type_${_switch}"
@@ -212,7 +212,7 @@ switch::remove_member(){
     local _if="$2"
     local _type
 
-    [ -z "${_switch}" -o -z "${_if}" ] && help::show "switch"
+    [ -z "${_switch}" -o -z "${_if}" ] && help::show "switch" 1
 
     # get the type of switch
     config::core::get "_type" "type_${_switch}"
@@ -238,7 +238,7 @@ switch::vlan(){
     local _vlan="$2"
     local _id _type
 
-    [ -z "${_switch}" -o -z "${_vlan}" ] && help::show "switch"
+    [ -z "${_switch}" -o -z "${_vlan}" ] && help::show "switch" 1
 
     switch::id "_id" "${_switch}"
     switch::type "_type" "${_switch}"
@@ -273,7 +273,7 @@ switch::private(){
     local _type
 
     # try to get switch type
-    [ -z "${_switch}" -o -z "${_priv}" ] && help::show "switch"
+    [ -z "${_switch}" -o -z "${_priv}" ] && help::show "switch" 1
     switch::type "_type" "${_switch}" || util::err "specified switch does not appear to be valid"
 
     case "${_type}" in
@@ -320,7 +320,7 @@ switch::address(){
     while getopts n: _opt; do
         case ${_opt} in
             n) _vlan="${OPTARG}" ;;
-            *) help::show "switch" ;;
+            *) help::show "switch" 1 ;;
         esac
     done
 
@@ -329,7 +329,7 @@ switch::address(){
     _addr="$2"
     _delete="$3"
 
-    [ -z "${_switch}" ] && help::show "switch"
+    [ -z "${_switch}" ] && help::show "switch" 1
 
     switch::id "_id" "${_switch}"
     switch::type "_type" "${_switch}"
