@@ -32,10 +32,13 @@ switch::manual::show(){
     local _name="$1"
     local _format="$2"
     local _bridge _priv
+    local _type="manual"
 
     config::core::get "_bridge" "bridge_${_name}"
     config::core::get "_priv" "private_${_name}" "no"
-    printf "${_format}" "${_name}" "manual" "${_bridge}" "n/a" "${_priv}" "n/a" "n/a" "n/a"
+    switch::is_vlanfilter "${_name}" && _type="manual+vf"
+
+    printf "${_format}" "${_name}" "${_type}" "${_bridge}" "n/a" "${_priv}" "n/a" "n/a" "n/a"
 }
 
 # create a manual switch
@@ -117,4 +120,17 @@ switch::manual::vlan(){
 #
 switch::manual::id(){
     config::core::get "$1" "bridge_$2"
+}
+
+# create a tap interface for a guest on a user-managed bridge
+#
+# @modifies _func _devices
+# @return 1 if we don't get a tap device
+#
+switch::manual::provision(){
+    if switch::is_vlanfilter "${_switch}"; then
+        switch::vlanfilter::provision
+    else
+        switch::standard::provision
+    fi
 }
