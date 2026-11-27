@@ -432,16 +432,22 @@ switch::vlanfilter::provision(){
             util::log "guest" "${_name}" "adding ${_tap} -> ${_sid} (${_switch} ${_member_type})"
             ifconfig "${_sid}" "${_member_type}" "${_tap}" >/dev/null 2>&1 || util::log "guest" "${_name}" "failed to add ${_tap} to ${_sid}"
 
-            if [ -n "${_untagged}" ]; then
-                util::log "guest" "${_name}" "configuring vlan on ${_tap} -> untagged ${_untagged}"
-                ifconfig "${_sid}" ifuntagged "${_tap}" "${_untagged}" >/dev/null 2>&1 || \
-                    util::log "guest" "${_name}" "failed to configure untagged vlan ${_untagged}"
-            fi
+            # vlan access list only apply bridge members, not span ports
+            if [ "${_member_type}" = "span" ]; then
+                [ -n "${_untagged}${_tagged}" ] && \
+                    util::log "guest" "${_name}" "ignoring vlanfilter settings for span port ${_tap}"
+            else
+                if [ -n "${_untagged}" ]; then
+                    util::log "guest" "${_name}" "configuring vlan on ${_tap} -> untagged ${_untagged}"
+                    ifconfig "${_sid}" ifuntagged "${_tap}" "${_untagged}" >/dev/null 2>&1 || \
+                        util::log "guest" "${_name}" "failed to configure untagged vlan ${_untagged}"
+                fi
 
-            if [ -n "${_tagged}" ]; then
-                util::log "guest" "${_name}" "configuring vlan on ${_tap} -> tagged ${_tagged}"
-                ifconfig "${_sid}" iftagged "${_tap}" "${_tagged}" >/dev/null 2>&1 || \
-                    util::log "guest" "${_name}" "failed to configure tagged vlan ${_tagged}"
+                if [ -n "${_tagged}" ]; then
+                    util::log "guest" "${_name}" "configuring vlan on ${_tap} -> tagged ${_tagged}"
+                    ifconfig "${_sid}" iftagged "${_tap}" "${_tagged}" >/dev/null 2>&1 || \
+                        util::log "guest" "${_name}" "failed to configure tagged vlan ${_tagged}"
+                fi
             fi
 
             util::log "guest" "${_name}" "bring up ${_tap} -> ${_sid} (${_switch} ${_member_type})"
