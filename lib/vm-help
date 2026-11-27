@@ -9,8 +9,15 @@ help::_help(){
     exit
 }
 
+# show help for a subcommand and exit
+#
+# @param string _cmd subcommand to show help for
+# @param int _status exit status (default 0), e.g. 1 when shown because of
+#        missing or invalid arguments
+#
 help::show(){
     local _help_cmd
+    local _status="${2:-0}"
 
     cmd::find "_help_cmd" "$1" "${CMD_VALID_LIST}"
 
@@ -25,7 +32,7 @@ help::show(){
 
     eval "printf %s \"\${_hs_${_help_cmd}#?}\""
 
-    exit
+    exit "${_status}"
 }
 
 #
