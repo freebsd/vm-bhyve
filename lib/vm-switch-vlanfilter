@@ -184,22 +184,7 @@ switch::vlanfilter::remove_member(){
 # @param int _vlan vlan id to set
 #
 switch::vlanfilter::vlan(){
-    local _switch="$1"
-    local _vlan="$2"
-    local _id
-
-    switch::vlanfilter::id "_id" "${_switch}" || util::err "unable to locate switch id"
-    switch::vlanfilter::__remove_members "${_switch}" "${_id}"
-
-    # update configuration
-    if [ "${_vlan}" = "0" ]; then
-        config::core::remove "vlan_${_switch}"
-    else
-        config::core::set "vlan_${_switch}" "${_vlan}"
-    fi
-
-    config::core::load
-    switch::vlanfilter::__add_members "${_switch}" "${_id}"
+    util::err "switch-wide vlan setting does not apply to vlanfilter switches"
 }
 
 # set or remove ip address

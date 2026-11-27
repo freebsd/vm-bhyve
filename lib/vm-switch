@@ -247,12 +247,13 @@ switch::vlan(){
     [ ${_vlan} -ge 4095 ] && util::err "invalid vlan number"
 
     case "${_type}" in
-        standard) switch::standard::vlan "${_switch}" "${_vlan}" ;;
-        manual)   switch::manual::vlan "${_switch}" "${_vlan}" ;;
-        netgraph) switch::netgraph::vlan "${_switch}" "${_vlan}" ;;
-        vale)     switch::vale::vlan "${_switch}" "${_vlan}" ;;
-        vxlan)    switch::vxlan::vlan "${_switch}" "${_vlan}" ;;
-        *)        util::err "unable to configure switch of unknown type" ;;
+        standard)   switch::standard::vlan "${_switch}" "${_vlan}" ;;
+        manual)     switch::manual::vlan "${_switch}" "${_vlan}" ;;
+        netgraph)   switch::netgraph::vlan "${_switch}" "${_vlan}" ;;
+        vale)       switch::vale::vlan "${_switch}" "${_vlan}" ;;
+        vlanfilter) switch::vlanfilter::vlan "${_switch}" "${_vlan}" ;;
+        vxlan)      switch::vxlan::vlan "${_switch}" "${_vlan}" ;;
+        *)          util::err "unable to configure switch of unknown type" ;;
     esac
 }
 
