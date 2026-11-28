@@ -17,7 +17,7 @@ core::list(){
             r) _running_only='true' ;;
             t) _filter_tag="${OPTARG}" ;;
             v) VM_OPT_VERBOSE="1" ;;
-            *) help::show "list" ;;
+            *) help::show "list" 1 ;;
         esac
     done
 
@@ -148,14 +148,14 @@ core::create(){
             n) _network_config=${OPTARG} ;;
             u) _user_data_file=${OPTARG} ;;
 
-            *) help::show "create" ;;
+            *) help::show "create" 1 ;;
         esac
     done
 
     shift $((OPTIND - 1))
     _name=$1
 
-    [ -z "${_name}" ] && help::show "create"
+    [ -z "${_name}" ] && help::show "create" 1
 
     # check guest name
     util::check_name "${_name}" || util::err "invalid virtual machine name - '${_name}'"
@@ -497,7 +497,7 @@ core::add(){
             d) _device=${OPTARG} ;;
             t) _type=${OPTARG} ;;
             s) _sopt=${OPTARG} ;;
-            *) help::show "add";;
+            *) help::show "add" 1;;
         esac
     done
 
@@ -505,7 +505,7 @@ core::add(){
     _name="$1"
 
     # check guest
-    [ -z "${_name}" ] && help::show "add"
+    [ -z "${_name}" ] && help::show "add" 1
     datastore::get_guest "${_name}" || "${_name} does not appear to be a valid virtual machine"
 
     case "${_device}" in
@@ -532,7 +532,7 @@ core::add_disk(){
 
     : ${_device:=file}
 
-    [ -z "${_size}" ] && help::show "add"
+    [ -z "${_size}" ] && help::show "add" 1
 
     # get the last existing disk
     config::load "${VM_DS_PATH}/${_name}/${_name}.conf"
@@ -585,7 +585,7 @@ core::add_network(){
     local _switch="$2"
     local _num=0 _curr _emulation
 
-    [ -z "${_switch}" ] && help::show "add"
+    [ -z "${_switch}" ] && help::show "add" 1
 
     config::load "${VM_DS_PATH}/${_name}/${_name}.conf"
 
@@ -619,7 +619,7 @@ core::install(){
     _name="$1"
     _iso="$2"
 
-    [ -z "${_name}" -o -z "${_iso}" ] && help::show "install"
+    [ -z "${_name}" -o -z "${_iso}" ] && help::show "install" 1
 
     # just run start with an iso
     datastore::iso_find "_fulliso" "${_iso}" || util::err "unable to locate iso file - '${_iso}'"
@@ -810,7 +810,7 @@ core::start(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && help::show "start"
+    [ -z "${_name}" ] && help::show "start" 1
     : ${vm_delay:=2}
 
     # disable foreground/interactive if we're starting more than one
@@ -959,7 +959,7 @@ core::stop(){
     local _name="$1"
     local _pid _loadpid
 
-    [ -z "${_name}" ] && help::show "stop"
+    [ -z "${_name}" ] && help::show "stop" 1
 
     while [ -n "${_name}" ]; do
         if [ ! -e "/dev/vmm/${_name}" ]; then
@@ -996,7 +996,7 @@ core::suspend(){
 
     util::check_bhyve_suspend || util::err "unable to suspend the guest"
 
-    [ -z "${_name}" ] && help::show "suspend"
+    [ -z "${_name}" ] && help::show "suspend" 1
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -1039,7 +1039,7 @@ core::reset(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && help::show "reset"
+    [ -z "${_name}" ] && help::show "reset" 1
     [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
 
     if [ -z "${VM_OPT_FORCE}" ]; then
@@ -1061,7 +1061,7 @@ core::poweroff(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && help::show "poweroff"
+    [ -z "${_name}" ] && help::show "poweroff" 1
     [ ! -e "/dev/vmm/${_name}" ] && util::err "${_name} doesn't appear to be a running virtual machine"
 
     if [ -z "${VM_OPT_FORCE}" ]; then
@@ -1084,7 +1084,7 @@ core::destroy(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && help::show "destroy"
+    [ -z "${_name}" ] && help::show "destroy" 1
 
     # trying to remove a snapshot?
     echo "${_name}" | grep -qs "@"
@@ -1120,10 +1120,10 @@ core::discard(){
     shift $?
     _name="$1"
 
-    [ -z "${_name}" ] && help::show "discard"
+    [ -z "${_name}" ] && help::show "discard" 1
 
     # core::discard only accepts one target guest
-    [ ! -z "$2" ] && help::show "discard"
+    [ ! -z "$2" ] && help::show "discard" 1
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -1157,7 +1157,7 @@ core::rename(){
     local _new="$2"
     local _mv_failed
 
-    [ -z "${_old}" -o -z "${_new}" ] && help::show "rename"
+    [ -z "${_old}" -o -z "${_new}" ] && help::show "rename" 1
     util::check_name "${_new}" || util::err "invalid virtual machine name - '${_name}'"
 
     datastore::get_guest "${_new}" && util::err "directory ${VM_DS_PATH}/${_new} already exists"
@@ -1208,7 +1208,7 @@ core::console(){
     while getopts w _opt ; do
         case $_opt in
             w) _wait_for_vm="1" ;;
-            *) help::show "console" ;;
+            *) help::show "console" 1 ;;
         esac
     done
 
@@ -1217,7 +1217,7 @@ core::console(){
     _name="$1"
     _port="$2"
 
-    [ -z "${_name}" ] && help::show "console"
+    [ -z "${_name}" ] && help::show "console" 1
 
     datastore::get_guest "${_name}" || util::err "${_name} doesn't appear to be a valid virtual machine"
 
@@ -1270,7 +1270,7 @@ core::configure(){
     local _name="$1"
     local _target="$2"
 
-    [ -z "${_name}" ] && help::show "configure"
+    [ -z "${_name}" ] && help::show "configure" 1
     [ -z "${EDITOR}" ] && EDITOR="vi"
 
     datastore::get_guest "${_name}" || \
@@ -1290,7 +1290,7 @@ core::configure(){
             $EDITOR "${VM_DS_PATH}/${_name}/${_name}.conf"
             ;;
         *)
-            help::show "configure"
+            help::show "configure" 1
             ;;
     esac
 }
@@ -1309,7 +1309,7 @@ core::iso(){
             4) _fetch_opts="${_fetch_opts} -4" ;;
             6) _fetch_opts="${_fetch_opts} -6" ;;
             d) _ds=${OPTARG} ;;
-            *) help::show "iso" ;;
+            *) help::show "iso" 1 ;;
         esac
     done
 
@@ -1367,7 +1367,7 @@ core::img(){
             4) _fetch_opts="${_fetch_opts} -4" ;;
             6) _fetch_opts="${_fetch_opts} -6" ;;
             d) _ds=${OPTARG} ;;
-            *) help::show "img" ;;
+            *) help::show "img" 1 ;;
         esac
     done
 

@@ -95,10 +95,10 @@ cmd::parse(){
 cmd::parse_tags(){
     local _cmd
 
-    [ -z "$1" ] && help::show "tags"
+    [ -z "$1" ] && help::show "tags" 1
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "add,remove,list,find,help" || help::show "tags"
+    cmd::find "_cmd" "$1" "add,remove,list,find,help" || help::show "tags" 1
     shift
 
     case "${_cmd}" in
@@ -120,10 +120,10 @@ cmd::parse_tags(){
 cmd::parse_switch(){
     local _cmd
 
-    [ -z "$1" ] && help::show "switch"
+    [ -z "$1" ] && help::show "switch" 1
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "create,list,destroy,add,remove,vlan,nat,address,private,info" || help::show "switch"
+    cmd::find "_cmd" "$1" "create,list,destroy,add,remove,vlan,nat,address,private,info,help" || help::show "switch" 1
     shift
 
     case "${_cmd}" in
@@ -137,6 +137,7 @@ cmd::parse_switch(){
         address) switch::address "$@" ;;
         private) switch::private "$@" ;;
         info)    info::switch "$@" ;;
+        help)    help::show "switch" ;;
         *)       util::err "unknown command '${_user_cmd}'. please run 'vm usage' or view the manpage for help" ;;
     esac
 }
@@ -150,10 +151,10 @@ cmd::parse_switch(){
 cmd::parse_datastore(){
     local _cmd
 
-    [ -z "$1" ] && help::show "datastore"
+    [ -z "$1" ] && help::show "datastore" 1
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "list,add,remove,iso,img" || help::show "datastore"
+    cmd::find "_cmd" "$1" "list,add,remove,iso,img,help" || help::show "datastore" 1
     shift
 
     case "${_cmd}" in
@@ -162,6 +163,7 @@ cmd::parse_datastore(){
         remove) datastore::remove "$@" ;;
         iso)    datastore::iso "$@" ;;
         img)    datastore::img "$@" ;;
+        help)   help::show "datastore" ;;
         *)      util::err "unknown command '${_user_cmd}'. please run 'vm usage' or view the manpage for help" ;;
     esac
 }
@@ -174,11 +176,11 @@ cmd::parse_datastore(){
 cmd::parse_image(){
     local _cmd
 
-    [ -z "$1" ] && help::show "image"
+    [ -z "$1" ] && help::show "image" 1
     [ -z "${VM_ZFS}" ] && util::err "\$vm_dir must be a ZFS datastore to use these functions"
 
     # try to find a matching command
-    cmd::find "_cmd" "$1" "list,create,provision,destroy" || help::show "image"
+    cmd::find "_cmd" "$1" "list,create,provision,destroy,help" || help::show "image" 1
     shift
 
     case "${_cmd}" in
@@ -186,6 +188,7 @@ cmd::parse_image(){
         create)    zfs::image_create "$@" ;;
         provision) zfs::image_provision "$@" ;;
         destroy)   zfs::image_destroy "$@" ;;
+        help)      help::show "image" ;;
         *)         util::err "unknown command '${_user_cmd}'. please run 'vm usage' or view the manpage for help" ;;
     esac
 }

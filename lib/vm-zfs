@@ -150,7 +150,7 @@ zfs::snapshot(){
         _name=${_name%%@*}
     fi
 
-    [ -z "${_name}" ] && help::show "snapshot"
+    [ -z "${_name}" ] && help::show "snapshot" 1
     datastore::get_guest "${_name}" || util::err "${_name} does not appear to be an existing virtual machine"
     [ ! "${VM_DS_ZFS}" = "1" ] && util::err "cannot snapshot guests on non-zfs datastores"
     [ -z "${_snap}" ] && _snap=$(date +"%Y-%m-%d-%H:%M:%S")
@@ -201,13 +201,13 @@ zfs::rollback(){
     while getopts r _opt; do
         case $_opt in
             r) _force="-r" ;;
-            *) help::show "rollback" ;;
+            *) help::show "rollback" 1 ;;
         esac
     done
 
     shift $((OPTIND - 1))
 
-    [ -z "$1" ] && help::show "rollback"
+    [ -z "$1" ] && help::show "rollback" 1
 
     _snap_exists=$(echo "${1}" | grep "@")
     [ -z "${_snap_exists}" ] && util::err "a snapshot name must be provided in guest@snapshot format"
@@ -215,7 +215,7 @@ zfs::rollback(){
     _name="${1%%@*}"
     _snap="${1##*@}"
 
-    [ -z "${_name}" -o -z "${_snap}" ] && help::show "rollback"
+    [ -z "${_name}" -o -z "${_snap}" ] && help::show "rollback" 1
 
     datastore::get_guest "${_name}" || util::err "${_name} does not appear to be an existing virtual machine"
     [ ! "${VM_DS_ZFS}" = "1" ] && util::err "cannot rollback guests on non-zfs datastores"
@@ -245,7 +245,7 @@ zfs::clone(){
     local _uuid=$(uuidgen)
 
     # check args and make sure new guest doesn't already exist
-    [ -z "${_old}" -o -z "${_name}" ] && help::show "clone"
+    [ -z "${_old}" -o -z "${_name}" ] && help::show "clone" 1
     datastore::get_guest "${_name}" && util::err "new guest already exists in ${VM_DS_PATH}/${_name}"
 
     # try to get snapshot name
@@ -319,7 +319,7 @@ zfs::image_create(){
         case $_opt in
             d) _desc=${OPTARG} ;;
             u) _no_compress="1" ;;
-            *) help::show "image" ;;
+            *) help::show "image" 1 ;;
         esac
     done
 
@@ -329,7 +329,7 @@ zfs::image_create(){
     _snap=${_uuid%%-*}
     _date=$(date -Iseconds)
 
-    [ -z "${_name}" ] && help::show "image"
+    [ -z "${_name}" ] && help::show "image" 1
     [ -z "${_desc}" ] && _desc="No description provided"
 
     datastore::get_guest "${_name}" || util::err "${_name} does not appear to be a valid virtual machine"
@@ -396,7 +396,7 @@ zfs::image_provision(){
     while getopts d: _opt ; do
         case $_opt in
             d) _datastore="${OPTARG}" ;;
-            *) help::show "image" ;;
+            *) help::show "image" 1 ;;
         esac
     done
 
@@ -404,7 +404,7 @@ zfs::image_provision(){
     _uuid="$1"
     _name="$2"
 
-    [ -z "${_uuid}" -o -z "${_name}" ] && help::show "image"
+    [ -z "${_uuid}" -o -z "${_name}" ] && help::show "image" 1
     [ ! -e "${vm_dir}/images/${_uuid}.manifest" ] && util::err "unable to locate image with uuid ${_uuid}"
     datastore::get_guest "${_name}" && util::err "new guest already exists in ${VM_DS_PATH}/${_name}"
 
@@ -488,7 +488,7 @@ zfs::image_destroy(){
     local _uuid="$1"
     local _file
 
-    [ -z "${_uuid}" ] && help::show "image"
+    [ -z "${_uuid}" ] && help::show "image" 1
     [ ! -e "${vm_dir}/images/${_uuid}.manifest" ] && util::err "unable to locate image with uuid ${_uuid}"
 
     # get the image filename
